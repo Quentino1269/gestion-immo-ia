@@ -1,0 +1,26 @@
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+target/
+build/
+dist/
+dist-ssr/
+node_modules/
+.vite/
+
+# Logs / locaux
+*.log
+*.local
+
+# Mémoire Claude (locale)
+MEMORY.md
+memory/
