@@ -54,6 +54,13 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Hashage des mots de passe (argon2id), cf. docs/slices/creation-utilisateur.md D8 -->
+        <dependency>
+            <groupId>de.mkammerer</groupId>
+            <artifactId>argon2-jvm</artifactId>
+            <version>2.11</version>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

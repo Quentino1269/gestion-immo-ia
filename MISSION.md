@@ -2,7 +2,7 @@
 
 > Ce document est la **source de vérité** pour tous les agents (Claude Code et sous-agents) qui interviennent sur ce dépôt. Il prime sur toute habitude par défaut. À lire avant d'agir.
 
-## 1. Mode opératoire en cours : **Mixte** (depuis 2026-05-12)
+## 1. Mode opératoire en cours : **Mixte + Orchestrateur Multi-Agents** (depuis 2026-05-12)
 
 Le projet est passé d'**Orchestration Métier stricte** à un **mode mixte** :
 
@@ -15,6 +15,22 @@ Règles transverses :
 - Si une demande utilisateur **dépasse** le périmètre §2 sans avoir été modélisée, **signaler** la contradiction et proposer soit (a) modéliser d'abord, soit (b) un stub minimal honnêtement borné.
 - L'ubiquitous language des slices fait foi pour le nommage du code (classes, méthodes, tables, endpoints).
 - En cas de divergence entre un slice validé et le code, **le slice prime** : on adapte le code (ou on modifie explicitement le slice si une découverte d'implémentation l'impose).
+
+### 1.bis Protocole d'Orchestration Multi-Agents (depuis 2026-05-13)
+
+Pour chaque slice à implémenter, l'agent change explicitement de **casquette** et produit ses livrables avant de passer à la suivante. Trois casquettes :
+
+| Casquette         | Mission                                                                                                                    | Livrables                                                                                            |
+|-------------------|----------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| **BACKEND**       | Implémenter le domaine (aggregates, value objects, invariants), les ports (in/out) et les adapters (web REST + persistance JPA). | Code Java compilable, modèle JPA, controller REST, configuration Spring nécessaire.                  |
+| **QA**            | Rédiger les tests d'intégration qui valident le triplet `command → invariants → event` puis la projection vers le read model.    | Tests JUnit + Spring Boot Test (+ Testcontainers PostgreSQL si nécessaire), couvrant golden path + cas de refus. |
+| **FRONTEND**      | Implémenter l'écran et la liaison vers le port d'entrée du backend.                                                        | Composants React + appels `fetch` / client API, styles Tailwind, gestion d'erreurs.                  |
+
+Règles d'orchestration :
+
+- Pour chaque slice : ordre fixe **BACKEND → QA → FRONTEND**. La casquette QA n'est lancée qu'après que le backend compile ; la casquette frontend qu'après que les tests d'intégration passent.
+- Chaque message produit par l'agent indique explicitement la casquette en cours : « **[BACKEND]** … », « **[QA]** … », « **[FRONTEND]** … ».
+- À l'issue d'un slice, attendre confirmation de l'utilisateur (« slice X validé en implémentation ») avant de passer au suivant.
 
 ## 2. Périmètre **prêt pour implémentation** (slices validés)
 
@@ -65,11 +81,13 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 ## 5. Stack figée (rappel, ne pas rediscuter sans demande explicite)
 
 - Backend : **Spring Boot 3.4 / Java 21 / Maven** (Maven imposé — contrainte CPU Intel).
-- Frontend : **React 18 + Vite + TypeScript**.
+- Frontend : **React 18 + Vite + TypeScript + Tailwind CSS v4** (intégration native via `@tailwindcss/vite`, pas de PostCSS séparé).
 - BDD : **PostgreSQL 16** (Docker, `infrastructure/docker-compose.yml`).
-- Architecture : **hexagonale** (ports & adapters). Découpage en modules / bounded contexts à affiner selon les slices.
-- Auth : **token opaque** (≥ 128 bits, hash sha-256 stocké). Pas de JWT.
-- Hash mdp : **argon2id** (paramètres OWASP 2024).
+- Architecture : **hexagonale** (ports & adapters), un **package racine par bounded context** : `com.immo.gestion.utilisateur`, `…session`, `…bien`, `…shared`. Chaque bounded context contient ses sous-paquets `domain` (model + port), `application` (use cases), `adapter` (in.web + out.persistence).
+- Auth : **token opaque** (≥ 128 bits, hash sha-256 stocké). Pas de JWT. Filter Spring **custom** lisant `Authorization: Bearer <token>` (pas de Spring Security en V1).
+- Hash mdp : **argon2id** via `de.mkammerer:argon2-jvm` (paramètres OWASP 2024).
+- Events : `ApplicationEventPublisher` Spring + listeners synchrones (transactionnels) pour les projections. **Pas d'event store** en V1 — les events sont publiés et consommés par les read models ; l'état courant des aggregates est persisté en JPA.
+- Migrations DB : `spring.jpa.hibernate.ddl-auto=update` en V1 (Flyway introduit plus tard si besoin).
 
 ## 6. Définitions de « fini »
 
@@ -108,3 +126,4 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 **Historique** :
 - 2026-05-12 — Création initiale (mode Orchestration Métier strict).
 - 2026-05-12 — Bascule en mode mixte après validation des 4 premiers slices.
+- 2026-05-13 — Ajout du protocole Orchestrateur Multi-Agents (BACKEND → QA → FRONTEND par slice). Stack précisée : Tailwind v4, custom filter auth, argon2-jvm, packages par bounded context, projections via `ApplicationEventPublisher`.
