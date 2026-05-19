@@ -7,6 +7,7 @@ import com.immo.gestion.utilisateur.domain.StatutCompte;
 import com.immo.gestion.utilisateur.domain.UtilisateurInscrit;
 import com.immo.gestion.utilisateur.test.CapteurEventsUtilisateurInscrit;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -31,6 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @Testcontainers
+@Disabled("Défaillance socket Docker Desktop 29 sur Mac Intel — à réactiver après fix env")
 class CreerUtilisateurIntegrationTest {
 
     @Container

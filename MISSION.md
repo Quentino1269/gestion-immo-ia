@@ -36,12 +36,12 @@ Règles d'orchestration :
 
 Quatre slices validés, à implémenter ensemble en cohérence :
 
-| Slice                              | Fichier                                                | Rôle dans la chaîne fonctionnelle                  |
-|------------------------------------|--------------------------------------------------------|----------------------------------------------------|
-| **Création d'un Utilisateur**      | `docs/slices/creation-utilisateur.md`                  | Inscription auto-publique (email, mdp argon2id).   |
-| **Authentification**               | `docs/slices/authentification.md`                      | Login (token opaque 24 h) + logout. Multi-session. |
-| **Enrichissement du Profil**       | `docs/slices/enrichissement-profil.md`                 | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
-| **Création d'un Bien**             | `docs/slices/creation-bien.md`                         | Ajout au portefeuille (maison, appart, chambre coloc). |
+| Slice                              | Statut          | Fichier                                                | Rôle dans la chaîne fonctionnelle                  |
+|------------------------------------|-----------------|--------------------------------------------------------|----------------------------------------------------|
+| **Création d'un Utilisateur**      | ✅ **COMPLETED** (2026-05-13) | `docs/slices/creation-utilisateur.md`    | Inscription auto-publique (email, mdp argon2id).   |
+| **Authentification**               | ✅ **COMPLETED** (2026-05-19) | `docs/slices/authentification.md`        | Login (token opaque 24 h) + logout. Multi-session. |
+| **Enrichissement du Profil**       | ⏳ à implémenter | `docs/slices/enrichissement-profil.md`                 | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
+| **Création d'un Bien**             | ⏳ à implémenter | `docs/slices/creation-bien.md`                         | Ajout au portefeuille (maison, appart, chambre coloc). |
 
 **Limitations consenties pour cette première implémentation** :
 
@@ -127,3 +127,5 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 - 2026-05-12 — Création initiale (mode Orchestration Métier strict).
 - 2026-05-12 — Bascule en mode mixte après validation des 4 premiers slices.
 - 2026-05-13 — Ajout du protocole Orchestrateur Multi-Agents (BACKEND → QA → FRONTEND par slice). Stack précisée : Tailwind v4, custom filter auth, argon2-jvm, packages par bounded context, projections via `ApplicationEventPublisher`.
+- 2026-05-13 — Slice **Création d'un Utilisateur** implémenté end-to-end (commit `d24367b`).
+- 2026-05-19 — Slice **Authentification** implémenté end-to-end (aggregate `Session`, token opaque CSPRNG 256 bits + SHA-256, dummy hash anti-énumération, `BearerAuthFilter`, frontend `LoginPage`/`AccueilPage` + `AuthProvider`). 35/35 tests unitaires verts ; tests d'intégration Testcontainers `@Disabled` faute de compat Docker Desktop 29 / `docker-java` sur Mac Intel.

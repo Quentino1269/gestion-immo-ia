@@ -2,6 +2,7 @@ package com.immo.gestion.utilisateur.adapter.crypto;
 
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.shared.MotDePasseClair;
+import com.immo.gestion.shared.MotDePasseSoumis;
 import com.immo.gestion.utilisateur.config.Argon2Config;
 import com.immo.gestion.utilisateur.domain.port.out.HasheurMotDePasse;
 import de.mkammerer.argon2.Argon2;
@@ -35,6 +36,16 @@ public class Argon2HasheurMotDePasse implements HasheurMotDePasse {
     @Override
     public boolean verifier(HashMotDePasse hash, MotDePasseClair candidat) {
         char[] caracteres = candidat.caracteres();
+        try {
+            return argon2.verify(hash.phcEncoded(), caracteres);
+        } finally {
+            argon2.wipeArray(caracteres);
+        }
+    }
+
+    @Override
+    public boolean verifierSoumission(HashMotDePasse hash, MotDePasseSoumis soumission) {
+        char[] caracteres = soumission.caracteres();
         try {
             return argon2.verify(hash.phcEncoded(), caracteres);
         } finally {

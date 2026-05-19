@@ -22,6 +22,13 @@
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--
+            Override de la version Testcontainers managée par spring-boot-dependencies 3.4.0
+            (1.20.4 par défaut). 1.21.3 restaure la compatibilité avec l'API Docker Desktop 29.x :
+            la 1.20.4 reçoit un Status 400 sur /info via docker-java, ce qui bloque toute
+            détection d'environnement Docker. Cf. session 2026-05-19, slice Authentification.
+        -->
+        <testcontainers.version>1.21.3</testcontainers.version>
     </properties>
 
     <dependencies>

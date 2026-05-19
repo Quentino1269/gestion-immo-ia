@@ -17,15 +17,20 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiPost<TRequest, TResponse>(
+async function fetchTyped<TResponse>(
   chemin: string,
-  payload: TRequest,
+  init: RequestInit,
+  token?: string,
 ): Promise<TResponse> {
-  const reponse = await fetch(chemin, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  const reponse = await fetch(chemin, { ...init, headers });
 
   if (!reponse.ok) {
     let body: ApiErrorBody = { message: 'Erreur inattendue.', erreurs: [] };
@@ -41,4 +46,20 @@ export async function apiPost<TRequest, TResponse>(
     return undefined as TResponse;
   }
   return (await reponse.json()) as TResponse;
+}
+
+export function apiPost<TRequest, TResponse>(
+  chemin: string,
+  payload: TRequest,
+  token?: string,
+): Promise<TResponse> {
+  return fetchTyped<TResponse>(
+    chemin,
+    { method: 'POST', body: JSON.stringify(payload) },
+    token,
+  );
+}
+
+export function apiDelete<TResponse>(chemin: string, token?: string): Promise<TResponse> {
+  return fetchTyped<TResponse>(chemin, { method: 'DELETE' }, token);
 }
