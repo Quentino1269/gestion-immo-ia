@@ -211,7 +211,9 @@ class AuthentificationIntegrationTest {
         utilisateurs.save(new UtilisateurEntity(
                 u.getId(), u.getEmail(), u.getHashMotDePasse(), u.getNom(), u.getPrenom(),
                 u.getTelephone(), StatutCompte.SUSPENDU, u.getVersionCgu(), u.getCguAccepteesLe(),
-                u.getVersionConfidentialite(), u.getConfidentialiteAccepteeLe(), u.getInscritLe()
+                u.getVersionConfidentialite(), u.getConfidentialiteAccepteeLe(), u.getInscritLe(),
+                null, null, null, null, null, null, null, null, null, null, null,
+                u.getStatutProfil(), u.getProfilCompleteLe()
         ));
 
         mockMvc.perform(post("/api/sessions")

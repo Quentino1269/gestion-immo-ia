@@ -60,6 +60,22 @@ export function apiPost<TRequest, TResponse>(
   );
 }
 
+export function apiGet<TResponse>(chemin: string, token?: string): Promise<TResponse> {
+  return fetchTyped<TResponse>(chemin, { method: 'GET' }, token);
+}
+
+export function apiPut<TRequest, TResponse>(
+  chemin: string,
+  payload: TRequest,
+  token?: string,
+): Promise<TResponse> {
+  return fetchTyped<TResponse>(
+    chemin,
+    { method: 'PUT', body: JSON.stringify(payload) },
+    token,
+  );
+}
+
 export function apiDelete<TResponse>(chemin: string, token?: string): Promise<TResponse> {
   return fetchTyped<TResponse>(chemin, { method: 'DELETE' }, token);
 }

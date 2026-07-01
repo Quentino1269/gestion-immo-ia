@@ -2,6 +2,8 @@ package com.immo.gestion.utilisateur.adapter.web;
 
 import com.immo.gestion.utilisateur.domain.port.in.ConsentementsNonAcceptesException;
 import com.immo.gestion.utilisateur.domain.port.in.EmailDejaUtiliseException;
+import com.immo.gestion.utilisateur.domain.port.in.ModificationProfilRefuseeException;
+import com.immo.gestion.utilisateur.domain.port.in.UtilisateurNonTrouveException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -10,10 +12,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.List;
 
-/**
- * Gestion des erreurs côté utilisateur. Réponse 400 générique pour ne pas
- * révéler d'information sensible (anti-énumération, cf. slice §11).
- */
 @RestControllerAdvice(assignableTypes = UtilisateurController.class)
 public class UtilisateurExceptionHandler {
 
@@ -22,7 +20,6 @@ public class UtilisateurExceptionHandler {
 
     @ExceptionHandler(EmailDejaUtiliseException.class)
     public ResponseEntity<ApiError> emailDejaUtilise(EmailDejaUtiliseException ex) {
-        // Anti-énumération : message générique.
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(ApiError.simple(MESSAGE_GENERIQUE_DEDOUBLON));
     }
@@ -30,6 +27,18 @@ public class UtilisateurExceptionHandler {
     @ExceptionHandler(ConsentementsNonAcceptesException.class)
     public ResponseEntity<ApiError> consentementsNonAcceptes(ConsentementsNonAcceptesException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiError.simple(ex.getMessage()));
+    }
+
+    @ExceptionHandler(ModificationProfilRefuseeException.class)
+    public ResponseEntity<ApiError> modificationRefusee(ModificationProfilRefuseeException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.simple(ex.getMessage()));
+    }
+
+    @ExceptionHandler(UtilisateurNonTrouveException.class)
+    public ResponseEntity<ApiError> utilisateurNonTrouve(UtilisateurNonTrouveException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.simple(ex.getMessage()));
     }
 

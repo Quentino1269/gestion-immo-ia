@@ -1,6 +1,8 @@
 package com.immo.gestion.utilisateur.adapter.persistence;
 
+import com.immo.gestion.utilisateur.domain.Civilite;
 import com.immo.gestion.utilisateur.domain.StatutCompte;
+import com.immo.gestion.utilisateur.domain.StatutProfil;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -9,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -53,6 +56,50 @@ public class UtilisateurEntity {
     @Column(name = "inscrit_le", nullable = false)
     private Instant inscritLe;
 
+    // --- Profil civil (slice enrichissement) ---
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "civilite", length = 16)
+    private Civilite civilite;
+
+    @Column(name = "date_naissance")
+    private LocalDate dateNaissance;
+
+    @Column(name = "lieu_naissance_ville", length = 80)
+    private String lieuNaissanceVille;
+
+    @Column(name = "lieu_naissance_pays_iso", length = 2)
+    private String lieuNaissancePaysIso;
+
+    @Column(name = "nationalite_iso", length = 2)
+    private String nationaliteIso;
+
+    @Column(name = "adresse_numero", length = 20)
+    private String adresseNumero;
+
+    @Column(name = "adresse_voie", length = 150)
+    private String adresseVoie;
+
+    @Column(name = "adresse_complement", length = 100)
+    private String adresseComplement;
+
+    @Column(name = "adresse_code_postal", length = 10)
+    private String adresseCodePostal;
+
+    @Column(name = "adresse_commune", length = 100)
+    private String adresseCommune;
+
+    @Column(name = "adresse_pays_iso", length = 2)
+    private String adressePaysIso;
+
+    // Nullable en base pour la migration ddl-auto=update ; toujours MINIMAL si null
+    @Enumerated(EnumType.STRING)
+    @Column(name = "statut_profil", length = 16)
+    private StatutProfil statutProfil;
+
+    @Column(name = "profil_complete_le")
+    private Instant profilCompleteLe;
+
     protected UtilisateurEntity() {
         // JPA
     }
@@ -69,7 +116,20 @@ public class UtilisateurEntity {
             Instant cguAccepteesLe,
             String versionConfidentialite,
             Instant confidentialiteAccepteeLe,
-            Instant inscritLe
+            Instant inscritLe,
+            Civilite civilite,
+            LocalDate dateNaissance,
+            String lieuNaissanceVille,
+            String lieuNaissancePaysIso,
+            String nationaliteIso,
+            String adresseNumero,
+            String adresseVoie,
+            String adresseComplement,
+            String adresseCodePostal,
+            String adresseCommune,
+            String adressePaysIso,
+            StatutProfil statutProfil,
+            Instant profilCompleteLe
     ) {
         this.id = id;
         this.email = email;
@@ -83,6 +143,19 @@ public class UtilisateurEntity {
         this.versionConfidentialite = versionConfidentialite;
         this.confidentialiteAccepteeLe = confidentialiteAccepteeLe;
         this.inscritLe = inscritLe;
+        this.civilite = civilite;
+        this.dateNaissance = dateNaissance;
+        this.lieuNaissanceVille = lieuNaissanceVille;
+        this.lieuNaissancePaysIso = lieuNaissancePaysIso;
+        this.nationaliteIso = nationaliteIso;
+        this.adresseNumero = adresseNumero;
+        this.adresseVoie = adresseVoie;
+        this.adresseComplement = adresseComplement;
+        this.adresseCodePostal = adresseCodePostal;
+        this.adresseCommune = adresseCommune;
+        this.adressePaysIso = adressePaysIso;
+        this.statutProfil = statutProfil;
+        this.profilCompleteLe = profilCompleteLe;
     }
 
     public UUID getId() { return id; }
@@ -97,4 +170,17 @@ public class UtilisateurEntity {
     public String getVersionConfidentialite() { return versionConfidentialite; }
     public Instant getConfidentialiteAccepteeLe() { return confidentialiteAccepteeLe; }
     public Instant getInscritLe() { return inscritLe; }
+    public Civilite getCivilite() { return civilite; }
+    public LocalDate getDateNaissance() { return dateNaissance; }
+    public String getLieuNaissanceVille() { return lieuNaissanceVille; }
+    public String getLieuNaissancePaysIso() { return lieuNaissancePaysIso; }
+    public String getNationaliteIso() { return nationaliteIso; }
+    public String getAdresseNumero() { return adresseNumero; }
+    public String getAdresseVoie() { return adresseVoie; }
+    public String getAdresseComplement() { return adresseComplement; }
+    public String getAdresseCodePostal() { return adresseCodePostal; }
+    public String getAdresseCommune() { return adresseCommune; }
+    public String getAdressePaysIso() { return adressePaysIso; }
+    public StatutProfil getStatutProfil() { return statutProfil; }
+    public Instant getProfilCompleteLe() { return profilCompleteLe; }
 }

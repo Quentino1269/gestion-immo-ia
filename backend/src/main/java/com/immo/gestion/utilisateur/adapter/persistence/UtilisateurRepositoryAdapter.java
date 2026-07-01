@@ -2,6 +2,8 @@ package com.immo.gestion.utilisateur.adapter.persistence;
 
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
+import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.utilisateur.domain.StatutProfil;
 import com.immo.gestion.utilisateur.domain.Utilisateur;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import com.immo.gestion.utilisateur.domain.port.out.UtilisateurRepository;
@@ -25,6 +27,7 @@ public class UtilisateurRepositoryAdapter implements UtilisateurRepository {
 
     @Override
     public void enregistrer(Utilisateur u) {
+        Adresse adr = u.adresseDomicile();
         jpa.save(new UtilisateurEntity(
                 u.id().valeur(),
                 u.email().valeur(),
@@ -37,7 +40,20 @@ public class UtilisateurRepositoryAdapter implements UtilisateurRepository {
                 u.cguAccepteesLe(),
                 u.versionConfidentialite(),
                 u.confidentialiteAccepteeLe(),
-                u.inscritLe()
+                u.inscritLe(),
+                u.civilite(),
+                u.dateNaissance(),
+                u.lieuNaissanceVille(),
+                u.lieuNaissancePaysIso(),
+                u.nationaliteIso(),
+                adr != null ? adr.numero() : null,
+                adr != null ? adr.voie() : null,
+                adr != null ? adr.complement() : null,
+                adr != null ? adr.codePostal() : null,
+                adr != null ? adr.commune() : null,
+                adr != null ? adr.paysIso() : null,
+                u.statutProfil(),
+                u.profilCompleteLe()
         ));
     }
 
@@ -47,6 +63,17 @@ public class UtilisateurRepositoryAdapter implements UtilisateurRepository {
     }
 
     private Utilisateur versDomaine(UtilisateurEntity e) {
+        Adresse adresse = null;
+        if (e.getAdresseNumero() != null && e.getAdresseVoie() != null) {
+            adresse = new Adresse(
+                    e.getAdresseNumero(),
+                    e.getAdresseVoie(),
+                    e.getAdresseComplement(),
+                    e.getAdresseCodePostal(),
+                    e.getAdresseCommune(),
+                    e.getAdressePaysIso()
+            );
+        }
         return new Utilisateur(
                 new UtilisateurId(e.getId()),
                 new Email(e.getEmail()),
@@ -59,7 +86,15 @@ public class UtilisateurRepositoryAdapter implements UtilisateurRepository {
                 e.getCguAccepteesLe(),
                 e.getVersionConfidentialite(),
                 e.getConfidentialiteAccepteeLe(),
-                e.getInscritLe()
+                e.getInscritLe(),
+                e.getCivilite(),
+                e.getDateNaissance(),
+                e.getLieuNaissanceVille(),
+                e.getLieuNaissancePaysIso(),
+                e.getNationaliteIso(),
+                adresse,
+                e.getStatutProfil() != null ? e.getStatutProfil() : StatutProfil.MINIMAL,
+                e.getProfilCompleteLe()
         );
     }
 }
