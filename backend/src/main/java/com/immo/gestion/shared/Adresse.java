@@ -1,4 +1,4 @@
-package com.immo.gestion.utilisateur.domain;
+package com.immo.gestion.shared;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -6,8 +6,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Value object — adresse postale de domicile.
- * Invariants I-7 et I-8 du slice enrichissement-profil.
+ * Value object — adresse postale (profil domicile et adresse d'un bien).
  */
 public record Adresse(
         String numero,

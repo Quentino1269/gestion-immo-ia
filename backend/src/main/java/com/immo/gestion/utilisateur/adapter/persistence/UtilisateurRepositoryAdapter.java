@@ -2,7 +2,7 @@ package com.immo.gestion.utilisateur.adapter.persistence;
 
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
-import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.utilisateur.domain.StatutProfil;
 import com.immo.gestion.utilisateur.domain.Utilisateur;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;

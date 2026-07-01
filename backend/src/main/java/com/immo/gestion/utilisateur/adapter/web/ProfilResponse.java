@@ -1,6 +1,6 @@
 package com.immo.gestion.utilisateur.adapter.web;
 
-import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.utilisateur.domain.Civilite;
 import com.immo.gestion.utilisateur.domain.ProfilUtilisateur;
 import com.immo.gestion.utilisateur.domain.StatutProfil;

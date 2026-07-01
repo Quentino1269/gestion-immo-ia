@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { ProfilPage } from './ProfilPage';
+import { PortefeuillePage } from './PortefeuillePage';
+import { NouveauBienPage } from './NouveauBienPage';
 
-type VueAccueil = 'accueil' | 'profil';
+type VueAccueil = 'accueil' | 'profil' | 'portefeuille' | 'nouveauBien';
 
 export function AccueilPage() {
   const { session, deconnecter } = useAuth();
@@ -24,6 +26,19 @@ export function AccueilPage() {
     return <ProfilPage onRetour={() => setVue('accueil')} />;
   }
 
+  if (vue === 'portefeuille') {
+    return (
+      <PortefeuillePage
+        onNouveauBien={() => setVue('nouveauBien')}
+        onRetour={() => setVue('accueil')}
+      />
+    );
+  }
+
+  if (vue === 'nouveauBien') {
+    return <NouveauBienPage onRetour={() => setVue('portefeuille')} />;
+  }
+
   const expireA = new Date(session.expireA);
 
   return (
@@ -41,6 +56,14 @@ export function AccueilPage() {
       </p>
 
       <div className="mt-6 space-y-3">
+        <button
+          type="button"
+          onClick={() => setVue('portefeuille')}
+          className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+        >
+          Mon portefeuille
+        </button>
+
         <button
           type="button"
           onClick={() => setVue('profil')}

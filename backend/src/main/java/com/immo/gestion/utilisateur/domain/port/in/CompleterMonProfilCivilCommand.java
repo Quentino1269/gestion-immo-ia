@@ -1,6 +1,6 @@
 package com.immo.gestion.utilisateur.domain.port.in;
 
-import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.utilisateur.domain.Civilite;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 

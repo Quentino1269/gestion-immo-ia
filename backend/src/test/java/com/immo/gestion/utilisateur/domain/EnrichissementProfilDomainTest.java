@@ -1,5 +1,6 @@
 package com.immo.gestion.utilisateur.domain;
 
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.utilisateur.domain.port.in.CompleterMonProfilCivilCommand;

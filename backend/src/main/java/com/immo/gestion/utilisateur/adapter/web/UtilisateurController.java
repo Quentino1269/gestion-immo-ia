@@ -1,7 +1,7 @@
 package com.immo.gestion.utilisateur.adapter.web;
 
 import com.immo.gestion.session.adapter.web.ContexteAuthentificationRequete;
-import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.utilisateur.domain.ProfilUtilisateur;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import com.immo.gestion.utilisateur.domain.port.in.CompleterMonProfilCivilCommand;

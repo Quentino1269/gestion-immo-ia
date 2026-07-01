@@ -3,7 +3,7 @@ package com.immo.gestion.utilisateur.application;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.utilisateur.config.ConsentementsActuels;
-import com.immo.gestion.utilisateur.domain.Adresse;
+import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.utilisateur.domain.AdresseDomicileRenseignee;
 import com.immo.gestion.utilisateur.domain.Civilite;
 import com.immo.gestion.utilisateur.domain.CiviliteRenseignee;

@@ -40,8 +40,8 @@ Quatre slices validés, à implémenter ensemble en cohérence :
 |------------------------------------|-----------------|--------------------------------------------------------|----------------------------------------------------|
 | **Création d'un Utilisateur**      | ✅ **COMPLETED** (2026-05-13) | `docs/slices/creation-utilisateur.md`    | Inscription auto-publique (email, mdp argon2id).   |
 | **Authentification**               | ✅ **COMPLETED** (2026-05-19) | `docs/slices/authentification.md`        | Login (token opaque 24 h) + logout. Multi-session. |
-| **Enrichissement du Profil**       | ⏳ à implémenter | `docs/slices/enrichissement-profil.md`                 | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
-| **Création d'un Bien**             | ⏳ à implémenter | `docs/slices/creation-bien.md`                         | Ajout au portefeuille (maison, appart, chambre coloc). |
+| **Enrichissement du Profil**       | ✅ **COMPLETED** (2026-06-??) | `docs/slices/enrichissement-profil.md`            | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
+| **Création d'un Bien**             | ✅ **COMPLETED** (2026-07-01) | `docs/slices/creation-bien.md`                    | Ajout au portefeuille (maison, appart, chambre coloc). |
 
 **Limitations consenties pour cette première implémentation** :
 
@@ -129,3 +129,5 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 - 2026-05-13 — Ajout du protocole Orchestrateur Multi-Agents (BACKEND → QA → FRONTEND par slice). Stack précisée : Tailwind v4, custom filter auth, argon2-jvm, packages par bounded context, projections via `ApplicationEventPublisher`.
 - 2026-05-13 — Slice **Création d'un Utilisateur** implémenté end-to-end (commit `d24367b`).
 - 2026-05-19 — Slice **Authentification** implémenté end-to-end (aggregate `Session`, token opaque CSPRNG 256 bits + SHA-256, dummy hash anti-énumération, `BearerAuthFilter`, frontend `LoginPage`/`AccueilPage` + `AuthProvider`). 35/35 tests unitaires verts ; tests d'intégration Testcontainers `@Disabled` faute de compat Docker Desktop 29 / `docker-java` sur Mac Intel.
+- 2026-06-?? — Slice **Enrichissement du Profil** implémenté end-to-end (commit `5f50d89`). Aggregate `Utilisateur` étendu, `StatutProfil MINIMAL→COMPLET`, 5 events, read model `ProfilUtilisateur`, 22 tests verts.
+- 2026-07-01 — Slice **Création d'un Bien** implémenté end-to-end. Bounded context `bien` créé (aggregate, 3 types, invariants I-1..I-8 + COLOC + CHARGES), `Adresse` migré vers `shared`, 30 tests verts, frontend portefeuille + formulaire nouveau bien.
