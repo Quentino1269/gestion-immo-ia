@@ -30,6 +30,7 @@ Règles d'orchestration :
 
 - Pour chaque slice : ordre fixe **BACKEND → QA → FRONTEND**. La casquette QA n'est lancée qu'après que le backend compile ; la casquette frontend qu'après que les tests d'intégration passent.
 - Chaque message produit par l'agent indique explicitement la casquette en cours : « **[BACKEND]** … », « **[QA]** … », « **[FRONTEND]** … ».
+- **Porte qualité obligatoire** après la casquette FRONTEND, avant de demander confirmation à l'utilisateur : lancer dans l'ordre les skills `code-review`, `security-review`, `simplify`, puis `verify` (exercice end-to-end du comportement) et `run` (démonstration manuelle dans l'app, golden path + un cas de refus). Corriger les findings bloquants avant de solliciter la validation utilisateur ; les findings non bloquants peuvent être signalés à l'utilisateur pour arbitrage.
 - À l'issue d'un slice, attendre confirmation de l'utilisateur (« slice X validé en implémentation ») avant de passer au suivant.
 
 ## 2. Périmètre **prêt pour implémentation** (slices validés)
@@ -113,6 +114,7 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 3. Documentation API exposée (OpenAPI ou équivalent généré).
 4. Aucune erreur sur la chaîne `mvn verify` (backend) et `npm run build` + `npm test` (frontend).
 5. Démonstration manuelle réussie de bout en bout (golden path + au moins un cas de refus).
+6. Porte qualité passée (voir §1.bis) : skills `code-review`, `security-review`, `simplify`, `verify`, `run` exécutés sur le diff du slice, findings bloquants corrigés.
 
 ## 7. Communication
 
@@ -131,3 +133,4 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 - 2026-05-19 — Slice **Authentification** implémenté end-to-end (aggregate `Session`, token opaque CSPRNG 256 bits + SHA-256, dummy hash anti-énumération, `BearerAuthFilter`, frontend `LoginPage`/`AccueilPage` + `AuthProvider`). 35/35 tests unitaires verts ; tests d'intégration Testcontainers `@Disabled` faute de compat Docker Desktop 29 / `docker-java` sur Mac Intel.
 - 2026-06-?? — Slice **Enrichissement du Profil** implémenté end-to-end (commit `5f50d89`). Aggregate `Utilisateur` étendu, `StatutProfil MINIMAL→COMPLET`, 5 events, read model `ProfilUtilisateur`, 22 tests verts.
 - 2026-07-01 — Slice **Création d'un Bien** implémenté end-to-end. Bounded context `bien` créé (aggregate, 3 types, invariants I-1..I-8 + COLOC + CHARGES), `Adresse` migré vers `shared`, 30 tests verts, frontend portefeuille + formulaire nouveau bien.
+- 2026-07-15 — Ajout d'une porte qualité obligatoire en fin de protocole (§1.bis, §6.2) : skills `code-review`, `security-review`, `simplify`, `verify`, `run` à exécuter systématiquement après la casquette FRONTEND, avant validation utilisateur.
