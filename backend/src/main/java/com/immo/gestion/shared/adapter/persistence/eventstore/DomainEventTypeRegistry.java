@@ -25,8 +25,16 @@ public class DomainEventTypeRegistry {
         }
     }
 
+    /**
+     * Valide l'enregistrement dès l'écriture plutôt que de laisser un type non enregistré
+     * échouer seulement au rejeu (potentiellement en production, sur une donnée déjà persistée).
+     */
     public String clefPour(DomainEvent evenement) {
-        return evenement.getClass().getSimpleName();
+        String clef = evenement.getClass().getSimpleName();
+        if (!typesParClef.containsKey(clef)) {
+            throw new EventTypeInconnuException(clef);
+        }
+        return clef;
     }
 
     public Class<? extends DomainEvent> resoudre(String clef) {

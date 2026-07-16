@@ -4,11 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import java.sql.SQLException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -70,12 +72,25 @@ class EventStoreAdapterTest {
     }
 
     @Test
-    void append_traduit_une_violation_de_contrainte_en_conflit_de_version() {
-        when(jpa.saveAll(anyList())).thenThrow(new DataIntegrityViolationException("dup"));
+    void append_traduit_une_violation_de_la_contrainte_occ_en_conflit_de_version() {
+        ConstraintViolationException cause = new ConstraintViolationException(
+                "duplicate key", new SQLException("dup"), "uk_event_store_stream_version");
+        when(jpa.saveAll(anyList())).thenThrow(new DataIntegrityViolationException("dup", cause));
         UUID streamId = UUID.randomUUID();
 
         assertThatThrownBy(() -> adapter.append(streamId, "Test", 0L, List.of(new EvenementTest("x", T))))
-                .isInstanceOf(ConflitDeVersionException.class);
+                .isInstanceOf(ConflitDeVersionException.class)
+                .hasCauseInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void append_laisse_remonter_une_violation_d_integrite_non_liee_a_l_occ() {
+        when(jpa.saveAll(anyList())).thenThrow(new DataIntegrityViolationException("colonne trop longue"));
+        UUID streamId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> adapter.append(streamId, "Test", 0L, List.of(new EvenementTest("x", T))))
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .isNotInstanceOf(ConflitDeVersionException.class);
     }
 
     @Test

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
 import com.immo.gestion.shared.domain.port.out.EventStore;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Repository;
 
@@ -54,7 +55,13 @@ public class EventStoreAdapter implements EventStore {
             jpa.saveAll(lignes);
             jpa.flush();
         } catch (DataIntegrityViolationException e) {
-            throw new ConflitDeVersionException(streamId, expectedVersion, e);
+            // Ne traduit que la violation de la contrainte OCC ; toute autre violation d'intégrité
+            // (bug de sérialisation, colonne trop longue, etc.) doit remonter telle quelle plutôt
+            // que d'être prise pour un conflit de version et retentée indéfiniment par l'appelant.
+            if (e.getCause() instanceof ConstraintViolationException) {
+                throw new ConflitDeVersionException(streamId, expectedVersion, e);
+            }
+            throw e;
         }
     }
 

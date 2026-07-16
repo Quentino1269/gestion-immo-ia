@@ -344,4 +344,20 @@ class EnrichissementProfilDomainTest {
         assertThat(reconstruit.adresseDomicile()).isEqualTo(adresseValide());
         assertThat(reconstruit.telephone()).isEqualTo("+33612345678");
     }
+
+    @Test
+    void reconstruire_avec_flux_vide_leve_une_exception() {
+        assertThatThrownBy(() -> Utilisateur.reconstruire(List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void reconstruire_avec_premier_evenement_inattendu_leve_une_exception() {
+        List<DomainEvent> evenements = List.of(
+                new CiviliteRenseignee(UtilisateurId.nouveau(), Civilite.MADAME, T)
+        );
+
+        assertThatThrownBy(() -> Utilisateur.reconstruire(evenements))
+                .isInstanceOf(IllegalStateException.class);
+    }
 }

@@ -117,7 +117,10 @@ public record Session(
                     e.survenuLe(), e.expireA(), EtatSession.ACTIVE, null, null,
                     e.userAgent(), e.ipSource()
             );
-            case UtilisateurDeconnecte e -> etat.fermer(e.motif(), e.survenuLe());
+            case UtilisateurDeconnecte e -> new Session(
+                    etat.id(), etat.utilisateurId(), etat.tokenHash(), etat.ouverteLe(), etat.expireA(),
+                    EtatSession.FERMEE, e.motif(), e.survenuLe(), etat.userAgent(), etat.ipSource()
+            );
             default -> throw new IllegalStateException(
                     "Événement inattendu dans le flux Session : " + evenement.getClass());
         };

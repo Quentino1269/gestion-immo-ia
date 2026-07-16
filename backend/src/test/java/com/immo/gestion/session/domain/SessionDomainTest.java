@@ -179,4 +179,38 @@ class SessionDomainTest {
         assertThat(s.motifFermeture()).isEqualTo(MotifFermeture.VOLONTAIRE);
         assertThat(s.fermeeLe()).isEqualTo(tFermeture);
     }
+
+    @Test
+    void reconstruire_ne_revalide_pas_les_invariants_metier_meme_sur_un_flux_incoherent() {
+        // Deux UtilisateurDeconnecte consécutifs : ne devrait normalement jamais arriver via
+        // SessionService (verrou optimiste), mais le rejeu doit rester une application
+        // inconditionnelle des faits, pas une revalidation (contrairement à fermer() appelé en direct).
+        SessionId id = SessionId.nouveau();
+        List<DomainEvent> evenements = List.of(
+                new UtilisateurConnecte(id, UID, HASH, T0.plus(VINGT_QUATRE_H), null, null, T0),
+                new UtilisateurDeconnecte(id, UID, MotifFermeture.VOLONTAIRE, T0.plus(Duration.ofHours(1))),
+                new UtilisateurDeconnecte(id, UID, MotifFermeture.EXPIRATION, T0.plus(Duration.ofHours(2)))
+        );
+
+        Session s = Session.reconstruire(evenements);
+
+        assertThat(s.etat()).isEqualTo(EtatSession.FERMEE);
+        assertThat(s.motifFermeture()).isEqualTo(MotifFermeture.EXPIRATION);
+    }
+
+    @Test
+    void reconstruire_avec_flux_vide_leve_une_exception() {
+        assertThatThrownBy(() -> Session.reconstruire(List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void reconstruire_avec_premier_evenement_inattendu_leve_une_exception() {
+        List<DomainEvent> evenements = List.of(
+                new UtilisateurDeconnecte(SessionId.nouveau(), UID, MotifFermeture.VOLONTAIRE, T0)
+        );
+
+        assertThatThrownBy(() -> Session.reconstruire(evenements))
+                .isInstanceOf(IllegalStateException.class);
+    }
 }
