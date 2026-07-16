@@ -22,6 +22,8 @@ import com.immo.gestion.session.domain.port.out.SessionRepository;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.shared.MotDePasseSoumis;
+import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
 import com.immo.gestion.utilisateur.domain.StatutCompte;
 import com.immo.gestion.utilisateur.domain.port.out.HasheurMotDePasse;
 import org.springframework.context.ApplicationEventPublisher;
@@ -31,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -102,15 +105,16 @@ public class SessionService implements SeConnecterUseCase, SeDeconnecterUseCase 
                     commande.userAgent(),
                     commande.ipSource()
             );
-            sessions.enregistrer(session);
-            eventPublisher.publishEvent(new UtilisateurConnecte(
+            DomainEvent evenement = new UtilisateurConnecte(
                     session.id(),
                     session.utilisateurId(),
+                    session.tokenHash(),
                     session.expireA(),
                     session.userAgentOpt().orElse(null),
                     session.ipSourceOpt().orElse(null),
                     maintenant
-            ));
+            );
+            sessions.enregistrer(session.id(), 0L, List.of(evenement));
             return new SeConnecterResultat(session.id(), token.clair(), session.expireA());
         } finally {
             soumission.effacer();
@@ -121,8 +125,9 @@ public class SessionService implements SeConnecterUseCase, SeDeconnecterUseCase 
     @Transactional
     public void seDeconnecter(SeDeconnecterCommand commande) {
         SessionId sessionId = commande.sessionId();
-        Session session = sessions.chargerParId(sessionId)
+        EtatCharge<Session> etatCharge = sessions.chargerParId(sessionId)
                 .orElseThrow(SessionInvalideException::new);
+        Session session = etatCharge.aggregat();
         // I-6 : seul le propriétaire peut fermer sa session
         if (!session.utilisateurId().equals(commande.utilisateurAppelant())) {
             throw new SessionInvalideException();
@@ -133,13 +138,13 @@ public class SessionService implements SeConnecterUseCase, SeDeconnecterUseCase 
         }
         Instant maintenant = Instant.now(clock);
         Session fermee = session.fermer(MotifFermeture.VOLONTAIRE, maintenant);
-        sessions.enregistrer(fermee);
-        eventPublisher.publishEvent(new UtilisateurDeconnecte(
+        DomainEvent evenement = new UtilisateurDeconnecte(
                 fermee.id(),
                 fermee.utilisateurId(),
                 MotifFermeture.VOLONTAIRE,
                 maintenant
-        ));
+        );
+        sessions.enregistrer(sessionId, etatCharge.version(), List.of(evenement));
     }
 
     /**

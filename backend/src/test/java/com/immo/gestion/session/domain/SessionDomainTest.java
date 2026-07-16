@@ -1,10 +1,12 @@
 package com.immo.gestion.session.domain;
 
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -142,5 +144,39 @@ class SessionDomainTest {
 
         assertThat(t.toString()).doesNotContain("super-secret-token");
         assertThat(t.toString()).contains("masqué");
+    }
+
+    // -------------------- Reconstruction par rejeu (Event Sourcing) --------------------
+
+    @Test
+    void reconstruire_avec_UtilisateurConnecte_seul_recree_une_session_active() {
+        UtilisateurConnecte evenement = new UtilisateurConnecte(
+                SessionId.nouveau(), UID, HASH, T0.plus(VINGT_QUATRE_H), "ua", "1.2.3.4", T0
+        );
+
+        Session s = Session.reconstruire(List.of(evenement));
+
+        assertThat(s.id()).isEqualTo(evenement.sessionId());
+        assertThat(s.utilisateurId()).isEqualTo(UID);
+        assertThat(s.tokenHash()).isEqualTo(HASH);
+        assertThat(s.ouverteLe()).isEqualTo(T0);
+        assertThat(s.expireA()).isEqualTo(T0.plus(VINGT_QUATRE_H));
+        assertThat(s.etat()).isEqualTo(EtatSession.ACTIVE);
+    }
+
+    @Test
+    void reconstruire_avec_connexion_puis_deconnexion_recree_une_session_fermee() {
+        SessionId id = SessionId.nouveau();
+        Instant tFermeture = T0.plus(Duration.ofHours(2));
+        List<DomainEvent> evenements = List.of(
+                new UtilisateurConnecte(id, UID, HASH, T0.plus(VINGT_QUATRE_H), null, null, T0),
+                new UtilisateurDeconnecte(id, UID, MotifFermeture.VOLONTAIRE, tFermeture)
+        );
+
+        Session s = Session.reconstruire(evenements);
+
+        assertThat(s.etat()).isEqualTo(EtatSession.FERMEE);
+        assertThat(s.motifFermeture()).isEqualTo(MotifFermeture.VOLONTAIRE);
+        assertThat(s.fermeeLe()).isEqualTo(tFermeture);
     }
 }

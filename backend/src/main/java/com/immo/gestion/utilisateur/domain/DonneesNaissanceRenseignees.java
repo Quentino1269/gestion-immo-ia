@@ -1,5 +1,7 @@
 package com.immo.gestion.utilisateur.domain;
 
+import com.immo.gestion.shared.domain.DomainEvent;
+
 import java.time.Instant;
 import java.time.LocalDate;
 
@@ -9,5 +11,5 @@ public record DonneesNaissanceRenseignees(
         String lieuNaissanceVille,
         String lieuNaissancePaysIso,
         String nationaliteIso,
-        Instant renseigneLe
-) {}
+        Instant survenuLe
+) implements DomainEvent {}

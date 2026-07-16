@@ -1,9 +1,11 @@
 package com.immo.gestion.session.domain;
 
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -86,6 +88,39 @@ public record Session(
                 userAgent,
                 ipSource
         );
+    }
+
+    /**
+     * Reconstruit l'aggregate par rejeu de son flux d'événements (Event Sourcing, MISSION §5).
+     * Application inconditionnelle des faits déjà validés historiquement — ne revalide pas les
+     * invariants métier (contrairement à {@link #fermer(MotifFermeture, Instant)} appelé en direct).
+     */
+    public static Session reconstruire(List<DomainEvent> evenements) {
+        if (evenements.isEmpty()) {
+            throw new IllegalStateException("Flux Session vide : impossible de reconstruire l'aggregate");
+        }
+        Session etat = null;
+        for (DomainEvent evenement : evenements) {
+            etat = appliquer(etat, evenement);
+        }
+        return etat;
+    }
+
+    private static Session appliquer(Session etat, DomainEvent evenement) {
+        if (etat == null && !(evenement instanceof UtilisateurConnecte)) {
+            throw new IllegalStateException(
+                    "Flux Session corrompu : premier événement attendu UtilisateurConnecte, reçu " + evenement.getClass());
+        }
+        return switch (evenement) {
+            case UtilisateurConnecte e -> new Session(
+                    e.sessionId(), e.utilisateurId(), e.tokenHash(),
+                    e.survenuLe(), e.expireA(), EtatSession.ACTIVE, null, null,
+                    e.userAgent(), e.ipSource()
+            );
+            case UtilisateurDeconnecte e -> etat.fermer(e.motif(), e.survenuLe());
+            default -> throw new IllegalStateException(
+                    "Événement inattendu dans le flux Session : " + evenement.getClass());
+        };
     }
 
     public boolean estActive(Instant maintenant) {

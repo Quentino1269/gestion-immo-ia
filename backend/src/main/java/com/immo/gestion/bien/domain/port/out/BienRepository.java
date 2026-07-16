@@ -1,19 +1,15 @@
 package com.immo.gestion.bien.domain.port.out;
 
-import com.immo.gestion.bien.domain.Bien;
 import com.immo.gestion.bien.domain.BienId;
-import com.immo.gestion.utilisateur.domain.UtilisateurId;
+import com.immo.gestion.shared.domain.DomainEvent;
 
 import java.util.List;
-import java.util.Optional;
 
+/**
+ * Port d'écriture (event-sourcé) : append au flux de l'aggregate. Cf. MISSION.md §5.
+ * Les lectures passent par {@link BienQueryRepository}.
+ */
 public interface BienRepository {
 
-    void enregistrer(Bien bien);
-
-    Optional<Bien> chargerParId(BienId id);
-
-    List<Bien> chargerParProprietaire(UtilisateurId proprietaireId);
-
-    List<Bien> chargerChambresParParent(BienId parentId);
+    void enregistrer(BienId id, long expectedVersion, List<DomainEvent> nouveauxEvenements);
 }

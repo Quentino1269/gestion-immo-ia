@@ -2,60 +2,39 @@ package com.immo.gestion.session.adapter.persistence;
 
 import com.immo.gestion.session.domain.Session;
 import com.immo.gestion.session.domain.SessionId;
-import com.immo.gestion.session.domain.TokenSessionHash;
 import com.immo.gestion.session.domain.port.out.SessionRepository;
-import com.immo.gestion.utilisateur.domain.UtilisateurId;
+import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
+import com.immo.gestion.shared.domain.port.out.EventStore;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class SessionRepositoryAdapter implements SessionRepository {
 
-    private final SessionJpaRepository jpa;
+    private final EventStore eventStore;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public SessionRepositoryAdapter(SessionJpaRepository jpa) {
-        this.jpa = jpa;
+    public SessionRepositoryAdapter(EventStore eventStore, ApplicationEventPublisher eventPublisher) {
+        this.eventStore = eventStore;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
-    public void enregistrer(Session session) {
-        jpa.save(new SessionEntity(
-                session.id().valeur(),
-                session.utilisateurId().valeur(),
-                session.tokenHash().hex(),
-                session.ouverteLe(),
-                session.expireA(),
-                session.etat(),
-                session.motifFermeture(),
-                session.fermeeLe(),
-                session.userAgentOpt().orElse(null),
-                session.ipSourceOpt().orElse(null)
-        ));
+    public void enregistrer(SessionId id, long expectedVersion, List<DomainEvent> nouveauxEvenements) {
+        eventStore.append(id.valeur(), "Session", expectedVersion, nouveauxEvenements);
+        nouveauxEvenements.forEach(eventPublisher::publishEvent);
     }
 
     @Override
-    public Optional<Session> chargerParId(SessionId id) {
-        return jpa.findById(id.valeur()).map(this::versDomaine);
-    }
-
-    @Override
-    public Optional<Session> chargerParTokenHash(TokenSessionHash hash) {
-        return jpa.findByTokenHash(hash.hex()).map(this::versDomaine);
-    }
-
-    private Session versDomaine(SessionEntity e) {
-        return new Session(
-                new SessionId(e.getId()),
-                new UtilisateurId(e.getUtilisateurId()),
-                new TokenSessionHash(e.getTokenHash()),
-                e.getOuverteLe(),
-                e.getExpireA(),
-                e.getEtat(),
-                e.getMotifFermeture(),
-                e.getFermeeLe(),
-                e.getUserAgent(),
-                e.getIpSource()
-        );
+    public Optional<EtatCharge<Session>> chargerParId(SessionId id) {
+        List<DomainEvent> evenements = eventStore.charger(id.valeur());
+        if (evenements.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(new EtatCharge<>(Session.reconstruire(evenements), evenements.size()));
     }
 }

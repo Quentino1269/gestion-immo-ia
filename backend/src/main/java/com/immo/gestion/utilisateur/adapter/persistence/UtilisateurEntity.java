@@ -183,4 +183,22 @@ public class UtilisateurEntity {
     public String getAdressePaysIso() { return adressePaysIso; }
     public StatutProfil getStatutProfil() { return statutProfil; }
     public Instant getProfilCompleteLe() { return profilCompleteLe; }
+
+    // Projection (read model) honnêtement mutable : mises à jour partielles par
+    // UtilisateurProjectionListener au fil des événements d'enrichissement du profil.
+    // Cf. MISSION.md §5.
+    public void setTelephone(String telephone) { this.telephone = telephone; }
+    public void setCivilite(Civilite civilite) { this.civilite = civilite; }
+    public void setDateNaissance(LocalDate dateNaissance) { this.dateNaissance = dateNaissance; }
+    public void setLieuNaissanceVille(String lieuNaissanceVille) { this.lieuNaissanceVille = lieuNaissanceVille; }
+    public void setLieuNaissancePaysIso(String lieuNaissancePaysIso) { this.lieuNaissancePaysIso = lieuNaissancePaysIso; }
+    public void setNationaliteIso(String nationaliteIso) { this.nationaliteIso = nationaliteIso; }
+    public void setAdresseNumero(String adresseNumero) { this.adresseNumero = adresseNumero; }
+    public void setAdresseVoie(String adresseVoie) { this.adresseVoie = adresseVoie; }
+    public void setAdresseComplement(String adresseComplement) { this.adresseComplement = adresseComplement; }
+    public void setAdresseCodePostal(String adresseCodePostal) { this.adresseCodePostal = adresseCodePostal; }
+    public void setAdresseCommune(String adresseCommune) { this.adresseCommune = adresseCommune; }
+    public void setAdressePaysIso(String adressePaysIso) { this.adressePaysIso = adressePaysIso; }
+    public void setStatutProfil(StatutProfil statutProfil) { this.statutProfil = statutProfil; }
+    public void setProfilCompleteLe(Instant profilCompleteLe) { this.profilCompleteLe = profilCompleteLe; }
 }

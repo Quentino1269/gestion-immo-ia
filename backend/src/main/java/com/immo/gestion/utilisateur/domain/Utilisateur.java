@@ -3,6 +3,7 @@ package com.immo.gestion.utilisateur.domain;
 import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.port.in.ModificationProfilRefuseeException;
 
 import java.time.Instant;
@@ -116,7 +117,7 @@ public record Utilisateur(
             com.immo.gestion.utilisateur.domain.port.in.CompleterMonProfilCivilCommand cmd,
             Instant maintenant
     ) {
-        List<Object> evenements = new ArrayList<>();
+        List<DomainEvent> evenements = new ArrayList<>();
 
         // --- Validation des invariants temporels ---
         if (cmd.dateNaissance() != null) {
@@ -199,6 +200,69 @@ public record Utilisateur(
         );
 
         return new ResultatCompletionProfil(misAJour, Collections.unmodifiableList(evenements));
+    }
+
+    /**
+     * Reconstruit l'aggregate par rejeu de son flux d'événements (Event Sourcing, MISSION §5).
+     * Application inconditionnelle des faits déjà validés historiquement — ne revalide pas les
+     * invariants de modification (contrairement à {@link #completerProfil} appelé en direct).
+     */
+    public static Utilisateur reconstruire(List<DomainEvent> evenements) {
+        if (evenements.isEmpty()) {
+            throw new IllegalStateException("Flux Utilisateur vide : impossible de reconstruire l'aggregate");
+        }
+        Utilisateur etat = null;
+        for (DomainEvent evenement : evenements) {
+            etat = appliquer(etat, evenement);
+        }
+        return etat;
+    }
+
+    private static Utilisateur appliquer(Utilisateur etat, DomainEvent evenement) {
+        if (etat == null && !(evenement instanceof UtilisateurInscrit)) {
+            throw new IllegalStateException(
+                    "Flux Utilisateur corrompu : premier événement attendu UtilisateurInscrit, reçu " + evenement.getClass());
+        }
+        return switch (evenement) {
+            case UtilisateurInscrit e -> new Utilisateur(
+                    e.utilisateurId(), e.email(), e.hashMotDePasse(), e.nom(), e.prenom(), e.telephone(),
+                    e.statut(), e.versionCgu(), e.cguAccepteesLe(), e.versionConfidentialite(), e.confidentialiteAccepteeLe(),
+                    e.survenuLe(),
+                    null, null, null, null, null, null, StatutProfil.MINIMAL, null
+            );
+            case CiviliteRenseignee e -> new Utilisateur(
+                    etat.id(), etat.email(), etat.hashMotDePasse(), etat.nom(), etat.prenom(), etat.telephone(),
+                    etat.statut(), etat.versionCgu(), etat.cguAccepteesLe(), etat.versionConfidentialite(), etat.confidentialiteAccepteeLe(), etat.inscritLe(),
+                    e.civilite(), etat.dateNaissance(), etat.lieuNaissanceVille(), etat.lieuNaissancePaysIso(), etat.nationaliteIso(),
+                    etat.adresseDomicile(), etat.statutProfil(), etat.profilCompleteLe()
+            );
+            case DonneesNaissanceRenseignees e -> new Utilisateur(
+                    etat.id(), etat.email(), etat.hashMotDePasse(), etat.nom(), etat.prenom(), etat.telephone(),
+                    etat.statut(), etat.versionCgu(), etat.cguAccepteesLe(), etat.versionConfidentialite(), etat.confidentialiteAccepteeLe(), etat.inscritLe(),
+                    etat.civilite(), e.dateNaissance(), e.lieuNaissanceVille(), e.lieuNaissancePaysIso(), e.nationaliteIso(),
+                    etat.adresseDomicile(), etat.statutProfil(), etat.profilCompleteLe()
+            );
+            case AdresseDomicileRenseignee e -> new Utilisateur(
+                    etat.id(), etat.email(), etat.hashMotDePasse(), etat.nom(), etat.prenom(), etat.telephone(),
+                    etat.statut(), etat.versionCgu(), etat.cguAccepteesLe(), etat.versionConfidentialite(), etat.confidentialiteAccepteeLe(), etat.inscritLe(),
+                    etat.civilite(), etat.dateNaissance(), etat.lieuNaissanceVille(), etat.lieuNaissancePaysIso(), etat.nationaliteIso(),
+                    e.adresseDomicile(), etat.statutProfil(), etat.profilCompleteLe()
+            );
+            case TelephoneRenseigne e -> new Utilisateur(
+                    etat.id(), etat.email(), etat.hashMotDePasse(), etat.nom(), etat.prenom(), e.telephone(),
+                    etat.statut(), etat.versionCgu(), etat.cguAccepteesLe(), etat.versionConfidentialite(), etat.confidentialiteAccepteeLe(), etat.inscritLe(),
+                    etat.civilite(), etat.dateNaissance(), etat.lieuNaissanceVille(), etat.lieuNaissancePaysIso(), etat.nationaliteIso(),
+                    etat.adresseDomicile(), etat.statutProfil(), etat.profilCompleteLe()
+            );
+            case ProfilUtilisateurComplete e -> new Utilisateur(
+                    etat.id(), etat.email(), etat.hashMotDePasse(), etat.nom(), etat.prenom(), etat.telephone(),
+                    etat.statut(), etat.versionCgu(), etat.cguAccepteesLe(), etat.versionConfidentialite(), etat.confidentialiteAccepteeLe(), etat.inscritLe(),
+                    etat.civilite(), etat.dateNaissance(), etat.lieuNaissanceVille(), etat.lieuNaissancePaysIso(), etat.nationaliteIso(),
+                    etat.adresseDomicile(), StatutProfil.COMPLET, e.survenuLe()
+            );
+            default -> throw new IllegalStateException(
+                    "Événement inattendu dans le flux Utilisateur : " + evenement.getClass());
+        };
     }
 
     public Optional<String> telephoneOpt() {

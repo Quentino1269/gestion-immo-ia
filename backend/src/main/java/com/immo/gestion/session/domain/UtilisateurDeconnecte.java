@@ -1,5 +1,6 @@
 package com.immo.gestion.session.domain;
 
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 
 import java.time.Instant;
@@ -13,5 +14,5 @@ public record UtilisateurDeconnecte(
         UtilisateurId utilisateurId,
         MotifFermeture motif,
         Instant survenuLe
-) {
+) implements DomainEvent {
 }

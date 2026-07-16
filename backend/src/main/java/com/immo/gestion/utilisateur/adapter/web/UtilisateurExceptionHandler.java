@@ -1,5 +1,6 @@
 package com.immo.gestion.utilisateur.adapter.web;
 
+import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
 import com.immo.gestion.utilisateur.domain.port.in.ConsentementsNonAcceptesException;
 import com.immo.gestion.utilisateur.domain.port.in.EmailDejaUtiliseException;
 import com.immo.gestion.utilisateur.domain.port.in.ModificationProfilRefuseeException;
@@ -40,6 +41,16 @@ public class UtilisateurExceptionHandler {
     public ResponseEntity<ApiError> utilisateurNonTrouve(UtilisateurNonTrouveException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiError.simple(ex.getMessage()));
+    }
+
+    /**
+     * Concurrence optimiste (Event Sourcing, MISSION §5) : deux commandes concurrentes ont
+     * chargé la même version de l'aggregate. Le client peut recharger et réessayer.
+     */
+    @ExceptionHandler(ConflitDeVersionException.class)
+    public ResponseEntity<ApiError> conflitDeVersion(ConflitDeVersionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.simple("Ce profil a été modifié entre-temps, veuillez réessayer."));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

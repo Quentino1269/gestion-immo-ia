@@ -1,6 +1,7 @@
 package com.immo.gestion.bien.domain;
 
 import com.immo.gestion.shared.Adresse;
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 
 import java.math.BigDecimal;
@@ -25,8 +26,8 @@ public record BienAjouteAuPortefeuille(
         ModaliteCharges modaliteCharges,
         Adresse adresse,
         LocalDate disponibleAPartirDu,
-        Instant ajouteLe
-) {
+        Instant survenuLe
+) implements DomainEvent {
 
     public static BienAjouteAuPortefeuille depuis(Bien bien) {
         return new BienAjouteAuPortefeuille(

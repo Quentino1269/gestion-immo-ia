@@ -5,6 +5,7 @@ import com.immo.gestion.bien.domain.port.in.BienParentIntrouvableException;
 import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurParentException;
 import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.SurfaceChambresDepasseeException;
+import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
 import com.immo.gestion.utilisateur.adapter.web.ApiError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -42,5 +43,15 @@ public class BienExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> illegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiError.simple(ex.getMessage()));
+    }
+
+    /**
+     * Concurrence optimiste (Event Sourcing, MISSION §5). Pas encore atteignable en pratique
+     * (Bien est create-only en V1), mappé par cohérence avant l'introduction d'un mutateur.
+     */
+    @ExceptionHandler(ConflitDeVersionException.class)
+    public ResponseEntity<ApiError> conflitDeVersion(ConflitDeVersionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiError.simple("Ce bien a été modifié entre-temps, veuillez réessayer."));
     }
 }

@@ -14,9 +14,10 @@ import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.ObtenirFicheBienUseCase;
 import com.immo.gestion.bien.domain.port.in.ObtenirMonPortefeuilleUseCase;
 import com.immo.gestion.bien.domain.port.in.SurfaceChambresDepasseeException;
+import com.immo.gestion.bien.domain.port.out.BienQueryRepository;
 import com.immo.gestion.bien.domain.port.out.BienRepository;
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,12 +30,12 @@ import java.util.List;
 public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseCase, ObtenirFicheBienUseCase {
 
     private final BienRepository repository;
-    private final ApplicationEventPublisher eventPublisher;
+    private final BienQueryRepository queryRepository;
     private final Clock clock;
 
-    public BienService(BienRepository repository, ApplicationEventPublisher eventPublisher, Clock clock) {
+    public BienService(BienRepository repository, BienQueryRepository queryRepository, Clock clock) {
         this.repository = repository;
-        this.eventPublisher = eventPublisher;
+        this.queryRepository = queryRepository;
         this.clock = clock;
     }
 
@@ -63,8 +64,8 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
                 maintenant
         );
 
-        repository.enregistrer(bien);
-        eventPublisher.publishEvent(BienAjouteAuPortefeuille.depuis(bien));
+        DomainEvent evenement = BienAjouteAuPortefeuille.depuis(bien);
+        repository.enregistrer(bien.id(), 0L, List.of(evenement));
 
         return FicheBien.depuis(bien);
     }
@@ -72,7 +73,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
     @Override
     @Transactional(readOnly = true)
     public List<LignePortefeuille> obtenir(UtilisateurId proprietaireId) {
-        return repository.chargerParProprietaire(proprietaireId)
+        return queryRepository.chargerParProprietaire(proprietaireId)
                 .stream()
                 .map(LignePortefeuille::depuis)
                 .toList();
@@ -81,7 +82,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
     @Override
     @Transactional(readOnly = true)
     public FicheBien obtenir(BienId bienId, UtilisateurId demandeurId) {
-        Bien bien = repository.chargerParId(bienId)
+        Bien bien = queryRepository.chargerParId(bienId)
                 .orElseThrow(() -> new BienNonTrouveException(bienId));
         return FicheBien.depuis(bien);
     }
@@ -89,7 +90,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
     // --- invariants cross-aggregate (I-COLOC-2, I-COLOC-4, I-COLOC-5) ---
 
     private void verifierInvariantsColocation(CreerBienCommand commande) {
-        Bien parent = repository.chargerParId(commande.bienParentId())
+        Bien parent = queryRepository.chargerParId(commande.bienParentId())
                 .orElseThrow(() -> new BienParentIntrouvableException(commande.bienParentId()));
 
         // I-COLOC-2 : le demandeur est propriétaire du parent
@@ -97,7 +98,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
             throw new DroitInsuffisantSurParentException();
         }
 
-        List<Bien> chambresExistantes = repository.chargerChambresParParent(commande.bienParentId());
+        List<Bien> chambresExistantes = queryRepository.chargerChambresParParent(commande.bienParentId());
 
         // I-COLOC-5 : libellé unique dans le parent
         boolean libelleExiste = chambresExistantes.stream()

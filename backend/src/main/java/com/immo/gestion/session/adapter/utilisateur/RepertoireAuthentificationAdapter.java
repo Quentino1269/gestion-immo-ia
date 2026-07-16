@@ -11,11 +11,10 @@ import org.springframework.stereotype.Component;
 import java.util.Optional;
 
 /**
- * Implémentation du port {@link RepertoireAuthentification} qui consulte la
- * persistance utilisateur en lecture seule. En V1 il n'existe pas de read model
- * matérialisé séparé : l'index {@code (email → utilisateurId, hash, statut)}
- * est porté par la table {@code utilisateurs} (slice creation-utilisateur, V1
- * sans event store — cf. MISSION §5).
+ * Implémentation du port {@link RepertoireAuthentification} qui consulte la projection
+ * {@code utilisateurs} (read model event-sourcé, cf. MISSION §5) en lecture seule : l'index
+ * {@code (email → utilisateurId, hash, statut)} y est directement disponible, pas besoin de
+ * rejouer le flux d'événements pour une simple recherche par email.
  */
 @Component
 public class RepertoireAuthentificationAdapter implements RepertoireAuthentification {

@@ -4,7 +4,7 @@ import com.immo.gestion.session.domain.Session;
 import com.immo.gestion.session.domain.TokenSession;
 import com.immo.gestion.session.domain.TokenSessionHash;
 import com.immo.gestion.session.domain.port.out.GenerateurTokenSession;
-import com.immo.gestion.session.domain.port.out.SessionRepository;
+import com.immo.gestion.session.domain.port.out.SessionQueryRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,12 +36,12 @@ public class BearerAuthFilter extends OncePerRequestFilter {
     private static final String PREFIXE_BEARER = "Bearer ";
 
     private final GenerateurTokenSession hasheurToken;
-    private final SessionRepository sessions;
+    private final SessionQueryRepository sessions;
     private final Clock clock;
 
     public BearerAuthFilter(
             GenerateurTokenSession hasheurToken,
-            SessionRepository sessions,
+            SessionQueryRepository sessions,
             Clock clock
     ) {
         this.hasheurToken = hasheurToken;

@@ -91,4 +91,10 @@ public class SessionEntity {
     public Instant getFermeeLe() { return fermeeLe; }
     public String getUserAgent() { return userAgent; }
     public String getIpSource() { return ipSource; }
+
+    // Projection (read model) honnêtement mutable : mise à jour partielle par SessionProjectionListener
+    // à la fermeture d'une session, sans reconstruire toute la ligne. Cf. MISSION.md §5.
+    public void setEtat(EtatSession etat) { this.etat = etat; }
+    public void setMotifFermeture(MotifFermeture motifFermeture) { this.motifFermeture = motifFermeture; }
+    public void setFermeeLe(Instant fermeeLe) { this.fermeeLe = fermeeLe; }
 }

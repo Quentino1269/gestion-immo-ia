@@ -1,100 +1,40 @@
 package com.immo.gestion.utilisateur.adapter.persistence;
 
-import com.immo.gestion.shared.Email;
-import com.immo.gestion.shared.HashMotDePasse;
-import com.immo.gestion.shared.Adresse;
-import com.immo.gestion.utilisateur.domain.StatutProfil;
+import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
+import com.immo.gestion.shared.domain.port.out.EventStore;
 import com.immo.gestion.utilisateur.domain.Utilisateur;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import com.immo.gestion.utilisateur.domain.port.out.UtilisateurRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
 public class UtilisateurRepositoryAdapter implements UtilisateurRepository {
 
-    private final UtilisateurJpaRepository jpa;
+    private final EventStore eventStore;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public UtilisateurRepositoryAdapter(UtilisateurJpaRepository jpa) {
-        this.jpa = jpa;
+    public UtilisateurRepositoryAdapter(EventStore eventStore, ApplicationEventPublisher eventPublisher) {
+        this.eventStore = eventStore;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
-    public boolean existeParEmail(Email email) {
-        return jpa.existsByEmail(email.valeur());
+    public void enregistrer(UtilisateurId id, long expectedVersion, List<DomainEvent> nouveauxEvenements) {
+        eventStore.append(id.valeur(), "Utilisateur", expectedVersion, nouveauxEvenements);
+        nouveauxEvenements.forEach(eventPublisher::publishEvent);
     }
 
     @Override
-    public void enregistrer(Utilisateur u) {
-        Adresse adr = u.adresseDomicile();
-        jpa.save(new UtilisateurEntity(
-                u.id().valeur(),
-                u.email().valeur(),
-                u.hashMotDePasse().phcEncoded(),
-                u.nom(),
-                u.prenom(),
-                u.telephone(),
-                u.statut(),
-                u.versionCgu(),
-                u.cguAccepteesLe(),
-                u.versionConfidentialite(),
-                u.confidentialiteAccepteeLe(),
-                u.inscritLe(),
-                u.civilite(),
-                u.dateNaissance(),
-                u.lieuNaissanceVille(),
-                u.lieuNaissancePaysIso(),
-                u.nationaliteIso(),
-                adr != null ? adr.numero() : null,
-                adr != null ? adr.voie() : null,
-                adr != null ? adr.complement() : null,
-                adr != null ? adr.codePostal() : null,
-                adr != null ? adr.commune() : null,
-                adr != null ? adr.paysIso() : null,
-                u.statutProfil(),
-                u.profilCompleteLe()
-        ));
-    }
-
-    @Override
-    public Optional<Utilisateur> chargerParId(UtilisateurId id) {
-        return jpa.findById(id.valeur()).map(this::versDomaine);
-    }
-
-    private Utilisateur versDomaine(UtilisateurEntity e) {
-        Adresse adresse = null;
-        if (e.getAdresseNumero() != null && e.getAdresseVoie() != null) {
-            adresse = new Adresse(
-                    e.getAdresseNumero(),
-                    e.getAdresseVoie(),
-                    e.getAdresseComplement(),
-                    e.getAdresseCodePostal(),
-                    e.getAdresseCommune(),
-                    e.getAdressePaysIso()
-            );
+    public Optional<EtatCharge<Utilisateur>> chargerParId(UtilisateurId id) {
+        List<DomainEvent> evenements = eventStore.charger(id.valeur());
+        if (evenements.isEmpty()) {
+            return Optional.empty();
         }
-        return new Utilisateur(
-                new UtilisateurId(e.getId()),
-                new Email(e.getEmail()),
-                new HashMotDePasse(e.getHashMotDePasse()),
-                e.getNom(),
-                e.getPrenom(),
-                e.getTelephone(),
-                e.getStatut(),
-                e.getVersionCgu(),
-                e.getCguAccepteesLe(),
-                e.getVersionConfidentialite(),
-                e.getConfidentialiteAccepteeLe(),
-                e.getInscritLe(),
-                e.getCivilite(),
-                e.getDateNaissance(),
-                e.getLieuNaissanceVille(),
-                e.getLieuNaissancePaysIso(),
-                e.getNationaliteIso(),
-                adresse,
-                e.getStatutProfil() != null ? e.getStatutProfil() : StatutProfil.MINIMAL,
-                e.getProfilCompleteLe()
-        );
+        return Optional.of(new EtatCharge<>(Utilisateur.reconstruire(evenements), evenements.size()));
     }
 }

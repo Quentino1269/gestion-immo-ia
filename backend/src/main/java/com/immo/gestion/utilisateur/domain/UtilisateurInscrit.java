@@ -2,16 +2,13 @@ package com.immo.gestion.utilisateur.domain;
 
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
+import com.immo.gestion.shared.domain.DomainEvent;
 
 import java.time.Instant;
 
 /**
  * Évènement publié à l'inscription d'un utilisateur.
  * Cf. docs/slices/creation-utilisateur.md §8.
- * <p>
- * Publié via {@code ApplicationEventPublisher} après persistance. Aucun listener
- * applicatif en V1 ; l'évènement existe pour matérialiser le fait métier et
- * sera consommé par les slices ultérieurs (notifications, journal, etc.).
  */
 public record UtilisateurInscrit(
         UtilisateurId utilisateurId,
@@ -25,8 +22,8 @@ public record UtilisateurInscrit(
         Instant cguAccepteesLe,
         String versionConfidentialite,
         Instant confidentialiteAccepteeLe,
-        Instant inscritLe
-) {
+        Instant survenuLe
+) implements DomainEvent {
 
     public static UtilisateurInscrit depuis(Utilisateur u) {
         return new UtilisateurInscrit(

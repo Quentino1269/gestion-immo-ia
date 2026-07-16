@@ -3,6 +3,7 @@ package com.immo.gestion.utilisateur.domain;
 import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.port.in.CompleterMonProfilCivilCommand;
 import com.immo.gestion.utilisateur.domain.port.in.ModificationProfilRefuseeException;
 import org.junit.jupiter.api.Test;
@@ -64,7 +65,7 @@ class EnrichissementProfilDomainTest {
         assertThat(resultat.misAJour().adresseDomicile()).isEqualTo(adresseValide());
         assertThat(resultat.misAJour().telephone()).isEqualTo("+33612345678");
 
-        List<Object> events = resultat.evenements();
+        List<DomainEvent> events = resultat.evenements();
         assertThat(events).hasSize(5);
         assertThat(events.get(0)).isInstanceOf(CiviliteRenseignee.class);
         assertThat(events.get(1)).isInstanceOf(DonneesNaissanceRenseignees.class);
@@ -85,7 +86,7 @@ class EnrichissementProfilDomainTest {
         ResultatCompletionProfil resultat = u.completerProfil(cmd, T);
 
         assertThat(resultat.misAJour().statutProfil()).isEqualTo(StatutProfil.COMPLET);
-        List<Object> events = resultat.evenements();
+        List<DomainEvent> events = resultat.evenements();
         assertThat(events).hasSize(3);
         assertThat(events.get(0)).isInstanceOf(DonneesNaissanceRenseignees.class);
         assertThat(events.get(1)).isInstanceOf(AdresseDomicileRenseignee.class);
@@ -302,5 +303,45 @@ class EnrichissementProfilDomainTest {
                 new Adresse("12", "Rue de la Paix", null, "75001", "Paris", "ZZ")
         ).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("paysIso");
+    }
+
+    // =========================================================
+    // Reconstruction par rejeu (Event Sourcing)
+    // =========================================================
+
+    @Test
+    void reconstruire_avec_UtilisateurInscrit_seul_recree_un_profil_minimal() {
+        Utilisateur u = utilisateurMinimal();
+        UtilisateurInscrit inscription = UtilisateurInscrit.depuis(u);
+
+        Utilisateur reconstruit = Utilisateur.reconstruire(List.of(inscription));
+
+        assertThat(reconstruit.id()).isEqualTo(u.id());
+        assertThat(reconstruit.email()).isEqualTo(u.email());
+        assertThat(reconstruit.statutProfil()).isEqualTo(StatutProfil.MINIMAL);
+        assertThat(reconstruit.civilite()).isNull();
+    }
+
+    @Test
+    void reconstruire_rejoue_inscription_puis_completion_et_retrouve_le_meme_etat() {
+        Utilisateur u = utilisateurMinimal();
+        UtilisateurInscrit inscription = UtilisateurInscrit.depuis(u);
+        CompleterMonProfilCivilCommand cmd = new CompleterMonProfilCivilCommand(
+                u.id(), Civilite.MADAME, dateNaissanceValide(),
+                "Paris", "FR", "FR",
+                adresseValide(), "+33612345678"
+        );
+        ResultatCompletionProfil resultat = u.completerProfil(cmd, T);
+
+        List<DomainEvent> flux = new java.util.ArrayList<>();
+        flux.add(inscription);
+        flux.addAll(resultat.evenements());
+        Utilisateur reconstruit = Utilisateur.reconstruire(flux);
+
+        assertThat(reconstruit.statutProfil()).isEqualTo(StatutProfil.COMPLET);
+        assertThat(reconstruit.civilite()).isEqualTo(Civilite.MADAME);
+        assertThat(reconstruit.dateNaissance()).isEqualTo(dateNaissanceValide());
+        assertThat(reconstruit.adresseDomicile()).isEqualTo(adresseValide());
+        assertThat(reconstruit.telephone()).isEqualTo("+33612345678");
     }
 }

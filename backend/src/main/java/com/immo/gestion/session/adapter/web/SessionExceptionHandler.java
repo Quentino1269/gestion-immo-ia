@@ -2,6 +2,7 @@ package com.immo.gestion.session.adapter.web;
 
 import com.immo.gestion.session.domain.port.in.IdentifiantsInvalidesException;
 import com.immo.gestion.session.domain.port.in.SessionInvalideException;
+import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,6 +30,16 @@ public class SessionExceptionHandler {
     public ResponseEntity<SessionApiError> sessionInvalide(SessionInvalideException ex) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(new SessionApiError(MESSAGE_GENERIQUE));
+    }
+
+    /**
+     * Concurrence optimiste (Event Sourcing, MISSION §5), ex. deux déconnexions concurrentes
+     * de la même session. Sans lien avec l'anti-énumération (D7) : message dédié possible ici.
+     */
+    @ExceptionHandler(ConflitDeVersionException.class)
+    public ResponseEntity<SessionApiError> conflitDeVersion(ConflitDeVersionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new SessionApiError("Cette session a été modifiée entre-temps, veuillez réessayer."));
     }
 
     /**

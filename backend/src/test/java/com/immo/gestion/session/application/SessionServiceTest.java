@@ -1,6 +1,5 @@
 package com.immo.gestion.session.application;
 
-import com.immo.gestion.session.domain.EtatSession;
 import com.immo.gestion.session.domain.MotifFermeture;
 import com.immo.gestion.session.domain.RaisonEchecConnexion;
 import com.immo.gestion.session.domain.Session;
@@ -23,6 +22,8 @@ import com.immo.gestion.session.domain.port.out.SessionRepository;
 import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.shared.MotDePasseSoumis;
+import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
 import com.immo.gestion.utilisateur.domain.StatutCompte;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import com.immo.gestion.utilisateur.domain.port.out.HasheurMotDePasse;
@@ -35,12 +36,14 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -93,6 +96,11 @@ class SessionServiceTest {
         );
     }
 
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<List<DomainEvent>> eventsCaptor() {
+        return ArgumentCaptor.forClass(List.class);
+    }
+
     // -------------------- Golden path --------------------
 
     @Test
@@ -106,19 +114,17 @@ class SessionServiceTest {
         assertThat(resultat.tokenClair()).isSameAs(TOKEN_GENERE.clair());
         assertThat(resultat.expireA()).isEqualTo(T.plus(DUREE));
 
-        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
-        verify(sessions).enregistrer(captor.capture());
-        Session persistee = captor.getValue();
-        assertThat(persistee.etat()).isEqualTo(EtatSession.ACTIVE);
-        assertThat(persistee.utilisateurId()).isEqualTo(UID);
-        assertThat(persistee.tokenHash()).isEqualTo(TOKEN_GENERE.hash());
-        assertThat(persistee.expireA()).isEqualTo(T.plus(DUREE));
+        ArgumentCaptor<SessionId> idCaptor = ArgumentCaptor.forClass(SessionId.class);
+        ArgumentCaptor<List<DomainEvent>> evenementsCaptor = eventsCaptor();
+        verify(sessions).enregistrer(idCaptor.capture(), eq(0L), evenementsCaptor.capture());
 
-        ArgumentCaptor<UtilisateurConnecte> evt = ArgumentCaptor.forClass(UtilisateurConnecte.class);
-        verify(publisher).publishEvent(evt.capture());
-        assertThat(evt.getValue().utilisateurId()).isEqualTo(UID);
-        assertThat(evt.getValue().sessionId()).isEqualTo(persistee.id());
-        assertThat(evt.getValue().expireA()).isEqualTo(T.plus(DUREE));
+        assertThat(resultat.sessionId()).isEqualTo(idCaptor.getValue());
+        assertThat(evenementsCaptor.getValue()).hasSize(1);
+        UtilisateurConnecte evenement = (UtilisateurConnecte) evenementsCaptor.getValue().get(0);
+        assertThat(evenement.sessionId()).isEqualTo(idCaptor.getValue());
+        assertThat(evenement.utilisateurId()).isEqualTo(UID);
+        assertThat(evenement.tokenHash()).isEqualTo(TOKEN_GENERE.hash());
+        assertThat(evenement.expireA()).isEqualTo(T.plus(DUREE));
     }
 
     // -------------------- Anti-énumération --------------------
@@ -138,7 +144,7 @@ class SessionServiceTest {
         verify(hasheur, times(1)).verifierSoumission(eq(HASH_DUMMY), any());
 
         // Aucune session persistée, event d'audit avec raison IDENTIFIANTS_INVALIDES
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
         ArgumentCaptor<TentativeDeConnexionEchouee> evt =
                 ArgumentCaptor.forClass(TentativeDeConnexionEchouee.class);
         verify(publisher).publishEvent(evt.capture());
@@ -178,7 +184,7 @@ class SessionServiceTest {
                 ArgumentCaptor.forClass(TentativeDeConnexionEchouee.class);
         verify(publisher).publishEvent(evt.capture());
         assertThat(evt.getValue().raison()).isEqualTo(RaisonEchecConnexion.IDENTIFIANTS_INVALIDES);
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
     }
 
     @Test
@@ -194,7 +200,7 @@ class SessionServiceTest {
                 ArgumentCaptor.forClass(TentativeDeConnexionEchouee.class);
         verify(publisher).publishEvent(evt.capture());
         assertThat(evt.getValue().raison()).isEqualTo(RaisonEchecConnexion.COMPTE_INACTIF);
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
     }
 
     @Test
@@ -229,20 +235,18 @@ class SessionServiceTest {
     @Test
     void seDeconnecter_session_active_de_l_appelant_la_ferme_et_emet_event() {
         Session active = Session.ouvrir(UID, TOKEN_GENERE.hash(), T.minus(Duration.ofHours(1)), DUREE, null, null);
-        when(sessions.chargerParId(active.id())).thenReturn(Optional.of(active));
+        when(sessions.chargerParId(active.id())).thenReturn(Optional.of(new EtatCharge<>(active, 1L)));
 
         service.seDeconnecter(new SeDeconnecterCommand(active.id(), UID));
 
-        ArgumentCaptor<Session> captor = ArgumentCaptor.forClass(Session.class);
-        verify(sessions).enregistrer(captor.capture());
-        Session fermee = captor.getValue();
-        assertThat(fermee.etat()).isEqualTo(EtatSession.FERMEE);
-        assertThat(fermee.motifFermeture()).isEqualTo(MotifFermeture.VOLONTAIRE);
-        assertThat(fermee.fermeeLe()).isEqualTo(T);
+        ArgumentCaptor<List<DomainEvent>> evenementsCaptor = eventsCaptor();
+        verify(sessions).enregistrer(eq(active.id()), eq(1L), evenementsCaptor.capture());
 
-        ArgumentCaptor<UtilisateurDeconnecte> evt = ArgumentCaptor.forClass(UtilisateurDeconnecte.class);
-        verify(publisher).publishEvent(evt.capture());
-        assertThat(evt.getValue().motif()).isEqualTo(MotifFermeture.VOLONTAIRE);
+        assertThat(evenementsCaptor.getValue()).hasSize(1);
+        UtilisateurDeconnecte evenement = (UtilisateurDeconnecte) evenementsCaptor.getValue().get(0);
+        assertThat(evenement.motif()).isEqualTo(MotifFermeture.VOLONTAIRE);
+        assertThat(evenement.sessionId()).isEqualTo(active.id());
+        assertThat(evenement.survenuLe()).isEqualTo(T);
     }
 
     @Test
@@ -252,7 +256,7 @@ class SessionServiceTest {
 
         assertThatThrownBy(() -> service.seDeconnecter(new SeDeconnecterCommand(sid, UID)))
                 .isInstanceOf(SessionInvalideException.class);
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
         verify(publisher, never()).publishEvent(any());
     }
 
@@ -261,21 +265,21 @@ class SessionServiceTest {
         UtilisateurId proprietaire = new UtilisateurId(UUID.randomUUID());
         UtilisateurId attaquant = new UtilisateurId(UUID.randomUUID());
         Session sessionAutrui = Session.ouvrir(proprietaire, TOKEN_GENERE.hash(), T, DUREE, null, null);
-        when(sessions.chargerParId(sessionAutrui.id())).thenReturn(Optional.of(sessionAutrui));
+        when(sessions.chargerParId(sessionAutrui.id())).thenReturn(Optional.of(new EtatCharge<>(sessionAutrui, 1L)));
 
         assertThatThrownBy(() -> service.seDeconnecter(new SeDeconnecterCommand(sessionAutrui.id(), attaquant)))
                 .isInstanceOf(SessionInvalideException.class);
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
     }
 
     @Test
     void seDeconnecter_session_deja_fermee_est_refusee() {
         Session deja = Session.ouvrir(UID, TOKEN_GENERE.hash(), T.minus(Duration.ofHours(2)), DUREE, null, null)
                 .fermer(MotifFermeture.VOLONTAIRE, T.minus(Duration.ofHours(1)));
-        when(sessions.chargerParId(deja.id())).thenReturn(Optional.of(deja));
+        when(sessions.chargerParId(deja.id())).thenReturn(Optional.of(new EtatCharge<>(deja, 2L)));
 
         assertThatThrownBy(() -> service.seDeconnecter(new SeDeconnecterCommand(deja.id(), UID)))
                 .isInstanceOf(SessionInvalideException.class);
-        verify(sessions, never()).enregistrer(any());
+        verify(sessions, never()).enregistrer(any(), anyLong(), any());
     }
 }

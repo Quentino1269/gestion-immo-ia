@@ -4,6 +4,8 @@ import com.immo.gestion.shared.Email;
 import com.immo.gestion.shared.HashMotDePasse;
 import com.immo.gestion.utilisateur.config.ConsentementsActuels;
 import com.immo.gestion.shared.Adresse;
+import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
 import com.immo.gestion.utilisateur.domain.AdresseDomicileRenseignee;
 import com.immo.gestion.utilisateur.domain.Civilite;
 import com.immo.gestion.utilisateur.domain.CiviliteRenseignee;
@@ -18,22 +20,23 @@ import com.immo.gestion.utilisateur.domain.port.in.CompleterMonProfilCivilComman
 import com.immo.gestion.utilisateur.domain.port.in.ModificationProfilRefuseeException;
 import com.immo.gestion.utilisateur.domain.port.in.UtilisateurNonTrouveException;
 import com.immo.gestion.utilisateur.domain.port.out.HasheurMotDePasse;
+import com.immo.gestion.utilisateur.domain.port.out.UtilisateurQueryRepository;
 import com.immo.gestion.utilisateur.domain.port.out.UtilisateurRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,23 +47,24 @@ class CompleterProfilServiceTest {
     private static final String HASH = "$argon2id$v=19$m=65536,t=3,p=4$AAAAAAAAAAAAAAAA$BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 
     private UtilisateurRepository repository;
-    private ApplicationEventPublisher publisher;
+    private UtilisateurQueryRepository queryRepository;
     private UtilisateurService service;
     private UtilisateurId uid;
 
     @BeforeEach
     void setUp() {
         repository = mock(UtilisateurRepository.class);
+        queryRepository = mock(UtilisateurQueryRepository.class);
         HasheurMotDePasse hasheur = mock(HasheurMotDePasse.class);
-        publisher = mock(ApplicationEventPublisher.class);
         uid = UtilisateurId.nouveau();
 
         service = new UtilisateurService(
-                repository, hasheur, new ConsentementsActuels("cgu-1", "conf-1"),
-                publisher, Clock.fixed(T, ZoneOffset.UTC)
+                repository, queryRepository, hasheur, new ConsentementsActuels("cgu-1", "conf-1"),
+                Clock.fixed(T, ZoneOffset.UTC)
         );
 
-        when(repository.chargerParId(uid)).thenReturn(Optional.of(utilisateurMinimal(uid)));
+        when(repository.chargerParId(uid)).thenReturn(Optional.of(new EtatCharge<>(utilisateurMinimal(uid), 1L)));
+        when(queryRepository.chargerParId(uid)).thenReturn(Optional.of(utilisateurMinimal(uid)));
     }
 
     private Utilisateur utilisateurMinimal(UtilisateurId id) {
@@ -86,6 +90,11 @@ class CompleterProfilServiceTest {
         );
     }
 
+    @SuppressWarnings("unchecked")
+    private static ArgumentCaptor<List<DomainEvent>> eventsCaptor() {
+        return ArgumentCaptor.forClass(List.class);
+    }
+
     @Test
     void completer_profil_complet_retourne_statut_COMPLET() {
         ProfilUtilisateur profil = service.completer(commandeComplete());
@@ -96,28 +105,24 @@ class CompleterProfilServiceTest {
     }
 
     @Test
-    void completer_persiste_utilisateur_mis_a_jour() {
+    void completer_persiste_les_evenements_avec_la_version_attendue() {
         service.completer(commandeComplete());
 
-        ArgumentCaptor<Utilisateur> captor = ArgumentCaptor.forClass(Utilisateur.class);
-        verify(repository).enregistrer(captor.capture());
-
-        Utilisateur persiste = captor.getValue();
-        assertThat(persiste.statutProfil()).isEqualTo(StatutProfil.COMPLET);
-        assertThat(persiste.civilite()).isEqualTo(Civilite.MADAME);
+        verify(repository).enregistrer(eq(uid), eq(1L), any());
     }
 
     @Test
-    void completer_publie_les_evenements_domaine() {
+    void completer_transmet_les_evenements_domaine_au_repository() {
         service.completer(commandeComplete());
 
-        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
-        verify(publisher, atLeastOnce()).publishEvent(captor.capture());
+        ArgumentCaptor<List<DomainEvent>> evenementsCaptor = eventsCaptor();
+        verify(repository).enregistrer(eq(uid), eq(1L), evenementsCaptor.capture());
 
-        assertThat(captor.getAllValues()).hasAtLeastOneElementOfType(CiviliteRenseignee.class);
-        assertThat(captor.getAllValues()).hasAtLeastOneElementOfType(DonneesNaissanceRenseignees.class);
-        assertThat(captor.getAllValues()).hasAtLeastOneElementOfType(AdresseDomicileRenseignee.class);
-        assertThat(captor.getAllValues()).hasAtLeastOneElementOfType(ProfilUtilisateurComplete.class);
+        List<DomainEvent> evenements = evenementsCaptor.getValue();
+        assertThat(evenements).hasAtLeastOneElementOfType(CiviliteRenseignee.class);
+        assertThat(evenements).hasAtLeastOneElementOfType(DonneesNaissanceRenseignees.class);
+        assertThat(evenements).hasAtLeastOneElementOfType(AdresseDomicileRenseignee.class);
+        assertThat(evenements).hasAtLeastOneElementOfType(ProfilUtilisateurComplete.class);
     }
 
     @Test
@@ -131,11 +136,11 @@ class CompleterProfilServiceTest {
     @Test
     void completer_avec_modification_leve_ModificationProfilRefuseeException() {
         // Première complétion avec MADAME
-        ProfilUtilisateur p1 = service.completer(commandeComplete());
+        service.completer(commandeComplete());
 
         // Simuler que le repo retourne l'utilisateur mis à jour
         Utilisateur apresComplétion = utilisateurMinimal(uid).completerProfil(commandeComplete(), T).misAJour();
-        when(repository.chargerParId(uid)).thenReturn(Optional.of(apresComplétion));
+        when(repository.chargerParId(uid)).thenReturn(Optional.of(new EtatCharge<>(apresComplétion, 5L)));
 
         // Tenter de modifier la civilité
         CompleterMonProfilCivilCommand modification = new CompleterMonProfilCivilCommand(
@@ -157,7 +162,7 @@ class CompleterProfilServiceTest {
 
     @Test
     void obtenir_profil_inexistant_leve_exception() {
-        when(repository.chargerParId(any())).thenReturn(Optional.empty());
+        when(queryRepository.chargerParId(any())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.obtenir(uid))
                 .isInstanceOf(UtilisateurNonTrouveException.class);
