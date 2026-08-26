@@ -35,7 +35,7 @@ Règles d'orchestration :
 
 ## 2. Périmètre **prêt pour implémentation** (slices validés)
 
-Quatre slices validés, à implémenter ensemble en cohérence :
+Cinq slices validés :
 
 | Slice                              | Statut          | Fichier                                                | Rôle dans la chaîne fonctionnelle                  |
 |------------------------------------|-----------------|--------------------------------------------------------|----------------------------------------------------|
@@ -43,6 +43,7 @@ Quatre slices validés, à implémenter ensemble en cohérence :
 | **Authentification**               | ✅ **COMPLETED** (2026-05-19) | `docs/slices/authentification.md`        | Login (token opaque 24 h) + logout. Multi-session. |
 | **Enrichissement du Profil**       | ✅ **COMPLETED** (2026-06-??) | `docs/slices/enrichissement-profil.md`            | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
 | **Création d'un Bien**             | ✅ **COMPLETED** (2026-07-01) | `docs/slices/creation-bien.md`                    | Ajout au portefeuille (maison, appart, chambre coloc). |
+| **Projection de Rentabilité**      | ✅ **VALIDÉ, non implémenté** (2026-08-26) | `docs/slices/projection-rentabilite.md` | Simule la rentabilité future d'un bien loué (fiscalité, financement, colocation), scénarios comparables. |
 
 **Limitations consenties pour cette première implémentation** :
 
@@ -135,3 +136,4 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 - 2026-07-01 — Slice **Création d'un Bien** implémenté end-to-end. Bounded context `bien` créé (aggregate, 3 types, invariants I-1..I-8 + COLOC + CHARGES), `Adresse` migré vers `shared`, 30 tests verts, frontend portefeuille + formulaire nouveau bien.
 - 2026-07-15 — Ajout d'une porte qualité obligatoire en fin de protocole (§1.bis, §6.2) : skills `code-review`, `security-review`, `simplify`, `verify`, `run` à exécuter systématiquement après la casquette FRONTEND, avant validation utilisateur.
 - 2026-07-16 — Migration vers l'Event Sourcing strict sur les 3 bounded contexts existants (`utilisateur`, `session`, `bien`) : table `event_store` (JSONB append-only, OCC via contrainte unique), aggregates reconstruits par rejeu (`reconstruire(...)`), ports repository scindés écriture (event-sourcée) / lecture (`XQueryRepository` adossé aux projections `utilisateurs`/`sessions`/`biens`), `TentativeDeConnexionEchouee` journalisée dans `tentatives_connexion_echouees`. Correctif de fond : `UtilisateurConnecte` gagne le champ `tokenHash` (nécessaire au rejeu de `Session`). Aucun changement de contrat REST. Voir `docs/slices/*.md` (inchangés, modèle événementiel identique) et le plan `.claude/plans/effervescent-meandering-pnueli.md`.
+- 2026-08-26 — Slice **Projection de Rentabilité** modélisé et validé (`docs/slices/projection-rentabilite.md`) : nouveau bounded context `rentabilite`, aggregate `SimulationRentabilite` (event sourcé, immuable, un scénario = un fait figé). Couvre nu/meublé, micro/réel complet avec amortissement LMNP, financement à crédit avec tableau d'amortissement complet, colocation (bien racine + agrégation des chambres actives), déficit foncier et déficit BIC suivis avec report multi-année, projection année par année sur horizon paramétrable, simulations sauvegardées et comparables. Pas encore implémenté — prochaine étape : protocole BACKEND → QA → FRONTEND (§1.bis).
