@@ -3,12 +3,27 @@ import { useAuth } from '../auth/useAuth';
 import { ProfilPage } from './ProfilPage';
 import { PortefeuillePage } from './PortefeuillePage';
 import { NouveauBienPage } from './NouveauBienPage';
+import { ComparateurSimulationsPage } from './ComparateurSimulationsPage';
+import { NouvelleSimulationRentabilitePage } from './NouvelleSimulationRentabilitePage';
+import { SimulationRentabiliteDetailPage } from './SimulationRentabiliteDetailPage';
+import type { SimulationRentabiliteResponse } from '../api/rentabilite';
 
-type VueAccueil = 'accueil' | 'profil' | 'portefeuille' | 'nouveauBien';
+type VueAccueil =
+  | 'accueil'
+  | 'profil'
+  | 'portefeuille'
+  | 'nouveauBien'
+  | 'comparateurRentabilite'
+  | 'nouvelleSimulation'
+  | 'detailSimulation';
 
 export function AccueilPage() {
   const { session, deconnecter } = useAuth();
   const [vue, setVue] = useState<VueAccueil>('accueil');
+  const [bienSelectionne, setBienSelectionne] = useState<string | null>(null);
+  const [simulationSelectionnee, setSimulationSelectionnee] = useState<string | null>(null);
+  const [simulationSourceAPrefiller, setSimulationSourceAPrefiller] =
+    useState<SimulationRentabiliteResponse | null>(null);
   const [enCours, setEnCours] = useState(false);
 
   async function gererDeconnexion() {
@@ -30,6 +45,10 @@ export function AccueilPage() {
     return (
       <PortefeuillePage
         onNouveauBien={() => setVue('nouveauBien')}
+        onSimulerRentabilite={(bienId) => {
+          setBienSelectionne(bienId);
+          setVue('comparateurRentabilite');
+        }}
         onRetour={() => setVue('accueil')}
       />
     );
@@ -37,6 +56,52 @@ export function AccueilPage() {
 
   if (vue === 'nouveauBien') {
     return <NouveauBienPage onRetour={() => setVue('portefeuille')} />;
+  }
+
+  if (vue === 'comparateurRentabilite' && bienSelectionne) {
+    return (
+      <ComparateurSimulationsPage
+        bienId={bienSelectionne}
+        onNouvelleSimulation={() => {
+          setSimulationSourceAPrefiller(null);
+          setVue('nouvelleSimulation');
+        }}
+        onVoirDetail={(simulationId) => {
+          setSimulationSelectionnee(simulationId);
+          setVue('detailSimulation');
+        }}
+        onRetour={() => setVue('portefeuille')}
+      />
+    );
+  }
+
+  if (vue === 'nouvelleSimulation' && bienSelectionne) {
+    return (
+      <NouvelleSimulationRentabilitePage
+        bienId={bienSelectionne}
+        simulationSource={simulationSourceAPrefiller ?? undefined}
+        onCree={(simulationId) => {
+          setSimulationSourceAPrefiller(null);
+          setSimulationSelectionnee(simulationId);
+          setVue('detailSimulation');
+        }}
+        onRetour={() => setVue('comparateurRentabilite')}
+      />
+    );
+  }
+
+  if (vue === 'detailSimulation' && simulationSelectionnee) {
+    return (
+      <SimulationRentabiliteDetailPage
+        simulationId={simulationSelectionnee}
+        onDupliquer={(simulation) => {
+          setBienSelectionne(simulation.bienId);
+          setSimulationSourceAPrefiller(simulation);
+          setVue('nouvelleSimulation');
+        }}
+        onRetour={() => setVue('comparateurRentabilite')}
+      />
+    );
   }
 
   const expireA = new Date(session.expireA);

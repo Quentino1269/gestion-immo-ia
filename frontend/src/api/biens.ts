@@ -56,6 +56,7 @@ export type LignePortefeuilleResponse = {
   bienId: string;
   typeBien: TypeBien;
   libelleCommercial: string;
+  bienParentId: string | null;
   surfaceM2: number;
   loyerHorsChargesEnCentimes: number;
   chargesEnCentimes: number;

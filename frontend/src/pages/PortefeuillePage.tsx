@@ -12,8 +12,15 @@ function formaterDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { dateStyle: 'short' });
 }
 
-function CartePortefeuille({ ligne }: { ligne: LignePortefeuilleResponse }) {
+function CartePortefeuille({
+  ligne,
+  onSimulerRentabilite,
+}: {
+  ligne: LignePortefeuilleResponse;
+  onSimulerRentabilite: (bienId: string) => void;
+}) {
   const adresseResume = `${ligne.adresse.numero} ${ligne.adresse.voie}, ${ligne.adresse.codePostal} ${ligne.adresse.commune}`;
+  const peutSimuler = ligne.typeBien !== 'CHAMBRE_COLOCATION';
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -25,14 +32,25 @@ function CartePortefeuille({ ligne }: { ligne: LignePortefeuilleResponse }) {
           {ligne.surfaceM2} m²
         </span>
       </div>
-      <div className="mt-3 flex items-center gap-4 text-sm text-slate-600">
-        <span>
-          {formaterLoyer(ligne.loyerHorsChargesEnCentimes)} HC
-          {ligne.chargesEnCentimes > 0 &&
-            ` + ${formaterLoyer(ligne.chargesEnCentimes)} charges`}
-        </span>
-        <span className="text-slate-400">·</span>
-        <span>Dispo le {formaterDate(ligne.disponibleAPartirDu)}</span>
+      <div className="mt-3 flex items-center justify-between">
+        <div className="flex items-center gap-4 text-sm text-slate-600">
+          <span>
+            {formaterLoyer(ligne.loyerHorsChargesEnCentimes)} HC
+            {ligne.chargesEnCentimes > 0 &&
+              ` + ${formaterLoyer(ligne.chargesEnCentimes)} charges`}
+          </span>
+          <span className="text-slate-400">·</span>
+          <span>Dispo le {formaterDate(ligne.disponibleAPartirDu)}</span>
+        </div>
+        {peutSimuler && (
+          <button
+            type="button"
+            onClick={() => onSimulerRentabilite(ligne.bienId)}
+            className="shrink-0 text-sm font-medium text-slate-700 hover:text-slate-900 hover:underline"
+          >
+            Rentabilité →
+          </button>
+        )}
       </div>
     </div>
   );
@@ -40,9 +58,11 @@ function CartePortefeuille({ ligne }: { ligne: LignePortefeuilleResponse }) {
 
 export function PortefeuillePage({
   onNouveauBien,
+  onSimulerRentabilite,
   onRetour,
 }: {
   onNouveauBien: () => void;
+  onSimulerRentabilite: (bienId: string) => void;
   onRetour: () => void;
 }) {
   const { session } = useAuth();
@@ -85,7 +105,7 @@ export function PortefeuillePage({
           ) : (
             <div className="space-y-4">
               {lignes.map((l) => (
-                <CartePortefeuille key={l.bienId} ligne={l} />
+                <CartePortefeuille key={l.bienId} ligne={l} onSimulerRentabilite={onSimulerRentabilite} />
               ))}
             </div>
           )}
