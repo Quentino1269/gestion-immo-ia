@@ -10,6 +10,7 @@ import com.immo.gestion.bien.domain.TypeBien;
 import com.immo.gestion.bien.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.bien.domain.port.in.BienParentIntrouvableException;
 import com.immo.gestion.bien.domain.port.in.CreerBienCommand;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurParentException;
 import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.SurfaceChambresDepasseeException;
@@ -136,6 +137,17 @@ class CreerBienServiceTest {
 
         assertThatThrownBy(() -> service.obtenir(id, proprietaireId))
                 .isInstanceOf(BienNonTrouveException.class);
+    }
+
+    @Test
+    void obtenir_fiche_bien_appartenant_a_un_autre_utilisateur_leve_exception() {
+        BienId id = BienId.nouveau();
+        UtilisateurId autreProprietaire = UtilisateurId.nouveau();
+        Bien b = bienAvec(id, autreProprietaire, TypeBien.APPARTEMENT, null, null, new BigDecimal("55.00"));
+        when(queryRepository.chargerParId(id)).thenReturn(Optional.of(b));
+
+        assertThatThrownBy(() -> service.obtenir(id, proprietaireId))
+                .isInstanceOf(DroitInsuffisantSurBienException.class);
     }
 
     // --- Invariants colocation cross-aggregate ---

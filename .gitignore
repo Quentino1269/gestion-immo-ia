@@ -24,3 +24,7 @@ node_modules/
 # Mémoire Claude (locale)
 MEMORY.md
 memory/
+
+# Claude Code (locaux)
+.claude/worktrees/
+.claude/settings.local.json

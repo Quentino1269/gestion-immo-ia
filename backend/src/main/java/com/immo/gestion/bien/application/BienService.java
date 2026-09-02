@@ -9,6 +9,7 @@ import com.immo.gestion.bien.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.bien.domain.port.in.BienParentIntrouvableException;
 import com.immo.gestion.bien.domain.port.in.CreerBienCommand;
 import com.immo.gestion.bien.domain.port.in.CreerBienUseCase;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurParentException;
 import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.ObtenirFicheBienUseCase;
@@ -84,6 +85,10 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
     public FicheBien obtenir(BienId bienId, UtilisateurId demandeurId) {
         Bien bien = queryRepository.chargerParId(bienId)
                 .orElseThrow(() -> new BienNonTrouveException(bienId));
+        // V1 mono-propriétaire (D16, cf. docs/slices/creation-bien.md) : ayant droit = propriétaire initial.
+        if (!bien.proprietaireInitialId().equals(demandeurId)) {
+            throw new DroitInsuffisantSurBienException();
+        }
         return FicheBien.depuis(bien);
     }
 

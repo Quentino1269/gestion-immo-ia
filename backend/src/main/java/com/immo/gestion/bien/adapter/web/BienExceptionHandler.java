@@ -2,6 +2,7 @@ package com.immo.gestion.bien.adapter.web;
 
 import com.immo.gestion.bien.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.bien.domain.port.in.BienParentIntrouvableException;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurParentException;
 import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.SurfaceChambresDepasseeException;
@@ -27,6 +28,11 @@ public class BienExceptionHandler {
 
     @ExceptionHandler(DroitInsuffisantSurParentException.class)
     public ResponseEntity<ApiError> droitInsuffisant(DroitInsuffisantSurParentException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.simple(ex.getMessage()));
+    }
+
+    @ExceptionHandler(DroitInsuffisantSurBienException.class)
+    public ResponseEntity<ApiError> droitInsuffisantSurBien(DroitInsuffisantSurBienException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.simple(ex.getMessage()));
     }
 

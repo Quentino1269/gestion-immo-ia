@@ -11,7 +11,7 @@ function App() {
       <main className="min-h-screen w-full bg-slate-50 px-6 py-12">
         <header className="mx-auto mb-10 max-w-md text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Gestion Immo</h1>
-          <p className="mt-2 text-sm text-slate-500">Plateforme de gestion locative</p>
+          <p className="mt-2 text-sm font-medium text-emerald-700">Plateforme de gestion locative</p>
         </header>
         <Routeur />
       </main>
@@ -58,7 +58,7 @@ function BoutonOnglet({
       type="button"
       onClick={onClick}
       className={`flex-1 rounded px-3 py-2 text-sm font-medium transition ${
-        actif ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+        actif ? 'bg-emerald-800 text-white' : 'text-slate-600 hover:bg-slate-100'
       }`}
     >
       {children}
