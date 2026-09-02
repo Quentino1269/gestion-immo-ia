@@ -9,7 +9,7 @@ import com.immo.gestion.bien.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.bien.domain.port.in.BienParentIntrouvableException;
 import com.immo.gestion.bien.domain.port.in.CreerBienCommand;
 import com.immo.gestion.bien.domain.port.in.CreerBienUseCase;
-import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurBienException;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.bien.domain.port.in.DroitInsuffisantSurParentException;
 import com.immo.gestion.bien.domain.port.in.LibelleChambreNonUniqueException;
 import com.immo.gestion.bien.domain.port.in.ObtenirFicheBienUseCase;

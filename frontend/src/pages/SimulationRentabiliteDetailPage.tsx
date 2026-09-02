@@ -2,31 +2,22 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import {
   obtenirDetailSimulation,
+  obtenirHistoriqueSimulation,
+  modifierSimulation,
+  payloadDepuisSimulation,
   LIBELLES_REGIME,
   type LigneProjectionResponse,
   type SimulationRentabiliteResponse,
 } from '../api/rentabilite';
+import { ApiError } from '../api/client';
 import { formaterEuros, formaterPourcent } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
+import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
+import { StatTuile } from '../components/StatTuile';
 
 function cellule(valeur: number, accentuerNegatif = false): string {
   if (accentuerNegatif && valeur < 0) return 'px-3 py-2 text-right text-red-600';
   return 'px-3 py-2 text-right text-slate-700';
-}
-
-// Palette diverging (skill ux-design / dataviz) : bleu = positif, rouge = négatif.
-const COULEUR_POSITIF = '#2a78d6';
-const COULEUR_NEGATIF = '#e34948';
-const COULEUR_GRILLE = '#c3c2b7';
-const COULEUR_TEXTE_MUET = '#898781';
-
-function StatTuile({ libelle, valeur }: { libelle: string; valeur: string }) {
-  return (
-    <div className="rounded-md border border-slate-200 bg-white p-3">
-      <p className="text-xs text-slate-500">{libelle}</p>
-      <p className="mt-1 text-lg font-semibold text-slate-900">{valeur}</p>
-    </div>
-  );
 }
 
 /** Annees affichées sous l'axe X : premier, dernier, et quelques jalons intermédiaires. */
@@ -210,16 +201,25 @@ function GraphiqueCapitalRestantDu({ lignes }: { lignes: LigneProjectionResponse
 export function SimulationRentabiliteDetailPage({
   simulationId,
   onDupliquer,
+  onModifier,
   onRetour,
 }: {
   simulationId: string;
   onDupliquer: (simulation: SimulationRentabiliteResponse) => void;
+  /** Édite ce scénario en place (même id) — distinct de dupliquer, qui en crée un nouveau. */
+  onModifier: (simulation: SimulationRentabiliteResponse) => void;
   onRetour: () => void;
 }) {
   const { session } = useAuth();
   const [simulation, setSimulation] = useState<SimulationRentabiliteResponse | null>(null);
   const [etat, setEtat] = useState<EtatChargement>('chargement');
   const [detailComplet, setDetailComplet] = useState(false);
+
+  const [historiqueOuvert, setHistoriqueOuvert] = useState(false);
+  const [historique, setHistorique] = useState<SimulationRentabiliteResponse[] | null>(null);
+  const [historiqueEtat, setHistoriqueEtat] = useState<EtatChargement>('chargement');
+  const [versionEnCoursDeRetour, setVersionEnCoursDeRetour] = useState<string | null>(null);
+  const [erreurHistorique, setErreurHistorique] = useState<string | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -230,6 +230,35 @@ export function SimulationRentabiliteDetailPage({
       })
       .catch(() => setEtat('erreur'));
   }, [session, simulationId]);
+
+  function basculerHistorique() {
+    setHistoriqueOuvert((v) => !v);
+    if (historique === null && session) {
+      setHistoriqueEtat('chargement');
+      obtenirHistoriqueSimulation(simulationId, session.token)
+        .then((data) => {
+          setHistorique(data);
+          setHistoriqueEtat('pret');
+        })
+        .catch(() => setHistoriqueEtat('erreur'));
+    }
+  }
+
+  async function revenirACetteVersion(version: SimulationRentabiliteResponse) {
+    if (!session) return;
+    setVersionEnCoursDeRetour(version.simuleLe);
+    setErreurHistorique(null);
+    try {
+      const miseAJour = await modifierSimulation(simulationId, payloadDepuisSimulation(version), session.token);
+      setSimulation(miseAJour);
+      setHistorique(null);
+      setHistoriqueOuvert(false);
+    } catch (err) {
+      setErreurHistorique(err instanceof ApiError ? err.message : 'Impossible de revenir à cette version.');
+    } finally {
+      setVersionEnCoursDeRetour(null);
+    }
+  }
 
   if (etat === 'chargement') {
     return <p className="text-sm text-slate-500">Chargement…</p>;
@@ -269,8 +298,15 @@ export function SimulationRentabiliteDetailPage({
         <div className="flex shrink-0 items-center gap-4">
           <button
             type="button"
+            onClick={() => onModifier(simulation)}
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+          >
+            Modifier ce scénario
+          </button>
+          <button
+            type="button"
             onClick={() => onDupliquer(simulation)}
-            className="text-sm font-medium text-slate-700 hover:text-slate-900 hover:underline"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
           >
             Dupliquer ce scénario
           </button>
@@ -286,8 +322,12 @@ export function SimulationRentabiliteDetailPage({
 
       <div className="mb-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <StatTuile libelle="Total des loyers (mois)" valeur={formaterEuros(loyerMensuelEnCentimes)} />
-        <StatTuile libelle="Total des charges (mois)" valeur={formaterEuros(chargesMensuellesEnCentimes)} />
-        <StatTuile libelle="Cash-flow (mois)" valeur={formaterEuros(cashFlowMensuelEnCentimes)} />
+        <StatTuile libelle="Charges + financement (mois)" valeur={formaterEuros(chargesMensuellesEnCentimes)} />
+        <StatTuile
+          libelle="Cash-flow (mois)"
+          valeur={formaterEuros(cashFlowMensuelEnCentimes)}
+          negatif={cashFlowMensuelEnCentimes < 0}
+        />
         <StatTuile libelle="Rendement brut" valeur={formaterPourcent(annee1?.rendementBrutPourcent ?? null)} />
         <StatTuile libelle="Rendement net-net" valeur={formaterPourcent(annee1?.rendementNetNetPourcent ?? null)} />
       </div>
@@ -439,9 +479,83 @@ export function SimulationRentabiliteDetailPage({
 
       <p className="mt-3 text-xs text-slate-400">
         « Solde déficit » cumule le déficit foncier et le déficit BIC reportables restant à
-        absorber sur les résultats futurs (D11, D21 du slice). Simulation figée le{' '}
+        absorber sur les résultats futurs (D11, D21 du slice). Version calculée le{' '}
         {new Date(simulation.simuleLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}.
       </p>
+
+      {/* Historique des versions : la modification est event-sourcée (append-only) — chaque
+          version reste consultable et on peut y revenir sans jamais rien effacer. */}
+      <button
+        type="button"
+        onClick={basculerHistorique}
+        className="mt-3 block text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+      >
+        {historiqueOuvert ? '− Masquer' : '+ Afficher'} l'historique des versions
+      </button>
+
+      {historiqueOuvert && (
+        <div className="mt-3 overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
+          {historiqueEtat === 'chargement' && (
+            <p className="p-4 text-sm text-slate-500">Chargement de l'historique…</p>
+          )}
+          {historiqueEtat === 'erreur' && (
+            <p className="p-4 text-sm text-red-600">Impossible de charger l'historique.</p>
+          )}
+          {historiqueEtat === 'pret' && historique && (
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600">Version</th>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600">Calculée le</th>
+                  <th className="px-4 py-2 text-left font-medium text-slate-600">Nom</th>
+                  <th className="px-4 py-2 text-right font-medium text-slate-600">Rdt. net-net (an 1)</th>
+                  <th className="px-4 py-2 text-right font-medium text-slate-600"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[...historique].reverse().map((version, indexInverse) => {
+                  const numeroVersion = historique.length - indexInverse;
+                  const estVersionActuelle = numeroVersion === historique.length;
+                  return (
+                    <tr key={version.simuleLe} className="hover:bg-slate-50">
+                      <td className="px-4 py-2 font-medium text-slate-900">
+                        {numeroVersion}
+                        {estVersionActuelle && (
+                          <span className="ml-2 rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                            Actuelle
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {new Date(version.simuleLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                      </td>
+                      <td className="px-4 py-2 text-slate-700">{version.nomScenario}</td>
+                      <td className="px-4 py-2 text-right text-slate-700">
+                        {formaterPourcent(version.projectionAnnuelle[0]?.rendementNetNetPourcent ?? null)}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        {!estVersionActuelle && (
+                          <button
+                            type="button"
+                            disabled={versionEnCoursDeRetour !== null}
+                            onClick={() => revenirACetteVersion(version)}
+                            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {versionEnCoursDeRetour === version.simuleLe ? 'Retour en cours…' : 'Revenir à cette version'}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+      {erreurHistorique && (
+        <p className="mt-2 text-xs text-red-600">{erreurHistorique}</p>
+      )}
     </section>
   );
 }

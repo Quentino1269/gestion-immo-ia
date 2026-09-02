@@ -1,9 +1,11 @@
 package com.immo.gestion.rentabilite.domain;
 
 import com.immo.gestion.bien.domain.BienId;
+import com.immo.gestion.shared.domain.DomainEvent;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -83,5 +85,64 @@ public record SimulationRentabilite(
         }
         projectionAnnuelle = List.copyOf(projectionAnnuelle);
         Objects.requireNonNull(simuleLe, "simuleLe requis");
+    }
+
+    /**
+     * Reconstruit l'état courant par rejeu du flux (Event Sourcing, MISSION §5) : un
+     * {@link RentabiliteSimulee} initial, puis zéro ou plusieurs {@link SimulationRentabiliteModifiee}
+     * qui écrasent les champs modifiables (jamais {@code id}/{@code bienId}/{@code utilisateurId}).
+     */
+    public static SimulationRentabilite reconstruire(List<DomainEvent> evenements) {
+        if (evenements.isEmpty()) {
+            throw new IllegalStateException("Flux SimulationRentabilite vide : impossible de reconstruire l'aggregate");
+        }
+        SimulationRentabilite etat = null;
+        for (DomainEvent evenement : evenements) {
+            etat = appliquer(etat, evenement);
+        }
+        return etat;
+    }
+
+    /**
+     * Comme {@link #reconstruire}, mais retourne l'état après chaque événement plutôt que le seul
+     * état final — sert à afficher l'historique des versions d'une simulation.
+     */
+    public static List<SimulationRentabilite> reconstruireHistorique(List<DomainEvent> evenements) {
+        if (evenements.isEmpty()) {
+            throw new IllegalStateException("Flux SimulationRentabilite vide : impossible de reconstruire l'historique");
+        }
+        List<SimulationRentabilite> historique = new ArrayList<>(evenements.size());
+        SimulationRentabilite etat = null;
+        for (DomainEvent evenement : evenements) {
+            etat = appliquer(etat, evenement);
+            historique.add(etat);
+        }
+        return historique;
+    }
+
+    private static SimulationRentabilite appliquer(SimulationRentabilite etat, DomainEvent evenement) {
+        if (etat == null && !(evenement instanceof RentabiliteSimulee)) {
+            throw new IllegalStateException(
+                    "Flux SimulationRentabilite corrompu : premier événement attendu RentabiliteSimulee, reçu "
+                            + evenement.getClass());
+        }
+        return switch (evenement) {
+            case RentabiliteSimulee e -> new SimulationRentabilite(
+                    e.simulationId(), e.bienId(), e.utilisateurId(), e.nomScenario(), e.regimeFiscal(),
+                    e.tmiFoyerPourcent(), e.horizonAnnees(), e.acquisition(), e.financement(), e.amortissement(),
+                    e.revenusLocatifsSimules(), e.chargesRecurrentes(), e.hypothesesEvolution(),
+                    e.coutTotalAcquisitionEnCentimes(), e.apportPersonnelEnCentimes(), e.projectionAnnuelle(),
+                    e.survenuLe()
+            );
+            case SimulationRentabiliteModifiee e -> new SimulationRentabilite(
+                    etat.id(), etat.bienId(), etat.utilisateurId(), e.nomScenario(), e.regimeFiscal(),
+                    e.tmiFoyerPourcent(), e.horizonAnnees(), e.acquisition(), e.financement(), e.amortissement(),
+                    e.revenusLocatifsSimules(), e.chargesRecurrentes(), e.hypothesesEvolution(),
+                    e.coutTotalAcquisitionEnCentimes(), e.apportPersonnelEnCentimes(), e.projectionAnnuelle(),
+                    e.survenuLe()
+            );
+            default -> throw new IllegalStateException(
+                    "Événement inattendu dans le flux SimulationRentabilite : " + evenement.getClass());
+        };
     }
 }

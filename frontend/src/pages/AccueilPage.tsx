@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { ProfilPage } from './ProfilPage';
 import { PortefeuillePage } from './PortefeuillePage';
@@ -7,6 +7,7 @@ import { ComparateurSimulationsPage } from './ComparateurSimulationsPage';
 import { NouvelleSimulationRentabilitePage } from './NouvelleSimulationRentabilitePage';
 import { SimulationRentabiliteDetailPage } from './SimulationRentabiliteDetailPage';
 import type { SimulationRentabiliteResponse } from '../api/rentabilite';
+import { obtenirPortefeuille } from '../api/biens';
 
 type VueAccueil =
   | 'accueil'
@@ -24,7 +25,16 @@ export function AccueilPage() {
   const [simulationSelectionnee, setSimulationSelectionnee] = useState<string | null>(null);
   const [simulationSourceAPrefiller, setSimulationSourceAPrefiller] =
     useState<SimulationRentabiliteResponse | null>(null);
+  const [simulationAModifier, setSimulationAModifier] = useState<SimulationRentabiliteResponse | null>(null);
   const [enCours, setEnCours] = useState(false);
+  const [nbBiens, setNbBiens] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    obtenirPortefeuille(session.token)
+      .then((data) => setNbBiens(data.length))
+      .catch(() => setNbBiens(null));
+  }, [session]);
 
   async function gererDeconnexion() {
     setEnCours(true);
@@ -64,6 +74,7 @@ export function AccueilPage() {
         bienId={bienSelectionne}
         onNouvelleSimulation={() => {
           setSimulationSourceAPrefiller(null);
+          setSimulationAModifier(null);
           setVue('nouvelleSimulation');
         }}
         onVoirDetail={(simulationId) => {
@@ -80,8 +91,10 @@ export function AccueilPage() {
       <NouvelleSimulationRentabilitePage
         bienId={bienSelectionne}
         simulationSource={simulationSourceAPrefiller ?? undefined}
+        simulationAModifier={simulationAModifier ?? undefined}
         onCree={(simulationId) => {
           setSimulationSourceAPrefiller(null);
+          setSimulationAModifier(null);
           setSimulationSelectionnee(simulationId);
           setVue('detailSimulation');
         }}
@@ -97,6 +110,13 @@ export function AccueilPage() {
         onDupliquer={(simulation) => {
           setBienSelectionne(simulation.bienId);
           setSimulationSourceAPrefiller(simulation);
+          setSimulationAModifier(null);
+          setVue('nouvelleSimulation');
+        }}
+        onModifier={(simulation) => {
+          setBienSelectionne(simulation.bienId);
+          setSimulationAModifier(simulation);
+          setSimulationSourceAPrefiller(null);
           setVue('nouvelleSimulation');
         }}
         onRetour={() => setVue('comparateurRentabilite')}
@@ -124,17 +144,27 @@ export function AccueilPage() {
         <button
           type="button"
           onClick={() => setVue('portefeuille')}
-          className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          className="flex w-full items-center justify-between rounded border border-slate-300 bg-white px-4 py-2 text-left hover:bg-slate-50"
         >
-          Mon portefeuille
+          <span>
+            <span className="block text-sm font-medium text-slate-800">Mon portefeuille</span>
+            {nbBiens !== null && (
+              <span className="mt-0.5 block text-xs text-slate-500">
+                {nbBiens} bien{nbBiens > 1 ? 's' : ''} géré{nbBiens > 1 ? 's' : ''}
+              </span>
+            )}
+          </span>
         </button>
 
         <button
           type="button"
           onClick={() => setVue('profil')}
-          className="w-full rounded border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-800 hover:bg-slate-50"
+          className="flex w-full items-center justify-between rounded border border-slate-300 bg-white px-4 py-2 text-left hover:bg-slate-50"
         >
-          Mon profil civil
+          <span>
+            <span className="block text-sm font-medium text-slate-800">Mon profil civil</span>
+            <span className="mt-0.5 block text-xs text-slate-500">Coordonnées et TMI de référence</span>
+          </span>
         </button>
 
         <button

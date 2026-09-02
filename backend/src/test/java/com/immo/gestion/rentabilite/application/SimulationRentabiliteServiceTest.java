@@ -17,9 +17,11 @@ import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabilite;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteId;
 import com.immo.gestion.rentabilite.domain.port.in.BienNonTrouveException;
-import com.immo.gestion.rentabilite.domain.port.in.DroitInsuffisantSurBienException;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
+import com.immo.gestion.rentabilite.domain.SimulationRentabiliteModifiee;
 import com.immo.gestion.rentabilite.domain.port.in.LancerSimulationRentabiliteCommand;
 import com.immo.gestion.rentabilite.domain.port.in.LignesRevenuIncoherentesException;
+import com.immo.gestion.rentabilite.domain.port.in.ModifierSimulationRentabiliteCommand;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;
 import com.immo.gestion.rentabilite.domain.port.in.TypeBienInvalidePourSimulationException;
@@ -27,6 +29,7 @@ import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteQueryRe
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteRepository;
 import com.immo.gestion.shared.Adresse;
 import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -290,6 +293,132 @@ class SimulationRentabiliteServiceTest {
         when(bienQueryRepository.chargerParId(bienId)).thenReturn(Optional.of(bien));
 
         assertThatThrownBy(() -> service.obtenir(bienId, proprietaireId))
+                .isInstanceOf(DroitInsuffisantSurBienException.class);
+    }
+
+    // --- modifier(commande) ---
+
+    private ModifierSimulationRentabiliteCommand commandeModification(
+            SimulationRentabiliteId id, UtilisateurId utilisateurId, RegimeFiscal regime, List<LigneRevenuSimule> revenus
+    ) {
+        return new ModifierSimulationRentabiliteCommand(
+                id, utilisateurId, "Scénario modifié", regime, 30, 1,
+                new ParametresAcquisition(25_000_000L, 0L, 0L, 0L, 0L),
+                new ParametresFinancement(0L, BigDecimal.ZERO, 0, BigDecimal.ZERO),
+                new ParametresAmortissement(new BigDecimal("15"), new BigDecimal("5"), 25, 7),
+                revenus,
+                new ParametresChargesRecurrentes(0L, 0L, 0L, BigDecimal.ZERO, 0L, 0L, 0L),
+                new HypothesesEvolution(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
+        );
+    }
+
+    @Test
+    void modifier_simulation_reussie_persiste_un_nouvel_evenement_a_la_version_courante() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, proprietaireId);
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+        Bien bien = bienAvec(existante.bienId(), proprietaireId, TypeBien.APPARTEMENT, false, null);
+        when(bienQueryRepository.chargerParId(existante.bienId())).thenReturn(Optional.of(bien));
+        when(bienQueryRepository.chargerChambresParParent(existante.bienId())).thenReturn(List.of());
+
+        ModifierSimulationRentabiliteCommand cmd = commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_FONCIER,
+                List.of(new LigneRevenuSimule(existante.bienId(), 120_000L, 0L)));
+
+        SimulationRentabilite resultat = service.modifier(cmd);
+
+        ArgumentCaptor<List<DomainEvent>> evenementsCaptor = eventsCaptor();
+        verify(repository).enregistrer(eq(id), eq(1L), evenementsCaptor.capture());
+        assertThat(evenementsCaptor.getValue()).hasSize(1);
+        SimulationRentabiliteModifiee evenement = (SimulationRentabiliteModifiee) evenementsCaptor.getValue().get(0);
+        assertThat(evenement.simulationId()).isEqualTo(id);
+        assertThat(evenement.nomScenario()).isEqualTo("Scénario modifié");
+        assertThat(resultat.id()).isEqualTo(id);
+        assertThat(resultat.bienId()).isEqualTo(existante.bienId());
+        assertThat(resultat.utilisateurId()).isEqualTo(proprietaireId);
+        assertThat(resultat.acquisition().prixAchatEnCentimes()).isEqualTo(25_000_000L);
+    }
+
+    @Test
+    void modifier_simulation_introuvable_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        when(repository.chargerParId(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.modifier(commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_FONCIER, List.of(new LigneRevenuSimule(BienId.nouveau(), 100_000L, 0L)))))
+                .isInstanceOf(SimulationNonTrouveeException.class);
+    }
+
+    @Test
+    void modifier_simulation_d_un_autre_utilisateur_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, UtilisateurId.nouveau());
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+
+        assertThatThrownBy(() -> service.modifier(commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_FONCIER,
+                List.of(new LigneRevenuSimule(existante.bienId(), 100_000L, 0L)))))
+                .isInstanceOf(DroitInsuffisantSurBienException.class);
+    }
+
+    @Test
+    void modifier_simulation_regime_meuble_incoherent_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, proprietaireId);
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+        Bien bien = bienAvec(existante.bienId(), proprietaireId, TypeBien.APPARTEMENT, false, null);
+        when(bienQueryRepository.chargerParId(existante.bienId())).thenReturn(Optional.of(bien));
+
+        assertThatThrownBy(() -> service.modifier(commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_BIC,
+                List.of(new LigneRevenuSimule(existante.bienId(), 100_000L, 0L)))))
+                .isInstanceOf(RegimeFiscalIncoherentException.class);
+    }
+
+    @Test
+    void modifier_simulation_ligne_revenu_incoherente_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, proprietaireId);
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+        Bien bien = bienAvec(existante.bienId(), proprietaireId, TypeBien.APPARTEMENT, false, null);
+        when(bienQueryRepository.chargerParId(existante.bienId())).thenReturn(Optional.of(bien));
+        when(bienQueryRepository.chargerChambresParParent(existante.bienId())).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.modifier(commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_FONCIER, List.of(new LigneRevenuSimule(BienId.nouveau(), 100_000L, 0L)))))
+                .isInstanceOf(LignesRevenuIncoherentesException.class);
+    }
+
+    // --- obtenirHistorique(id, demandeurId) ---
+
+    @Test
+    void obtenir_historique_retourne_toutes_les_versions_du_demandeur() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite v1 = simulationAvec(id, proprietaireId);
+        SimulationRentabilite v2 = simulationAvec(id, proprietaireId);
+        when(repository.chargerHistorique(id)).thenReturn(List.of(v1, v2));
+
+        List<SimulationRentabilite> historique = service.obtenirHistorique(id, proprietaireId);
+
+        assertThat(historique).containsExactly(v1, v2);
+    }
+
+    @Test
+    void obtenir_historique_introuvable_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        when(repository.chargerHistorique(id)).thenReturn(List.of());
+
+        assertThatThrownBy(() -> service.obtenirHistorique(id, proprietaireId))
+                .isInstanceOf(SimulationNonTrouveeException.class);
+    }
+
+    @Test
+    void obtenir_historique_d_un_autre_utilisateur_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite v1 = simulationAvec(id, UtilisateurId.nouveau());
+        when(repository.chargerHistorique(id)).thenReturn(List.of(v1));
+
+        assertThatThrownBy(() -> service.obtenirHistorique(id, proprietaireId))
                 .isInstanceOf(DroitInsuffisantSurBienException.class);
     }
 

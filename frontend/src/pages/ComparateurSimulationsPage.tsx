@@ -3,6 +3,76 @@ import { useAuth } from '../auth/useAuth';
 import { obtenirComparateur, LIBELLES_REGIME, type LigneComparateurResponse } from '../api/rentabilite';
 import { formaterEuros, formaterPourcent } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
+import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
+
+/** Graphique comparatif du rendement net-net par scénario, affiché avant le tableau détaillé
+ * (principe dataviz "graphique avant tableau" — constat #5 de l'audit ux-design). */
+function GraphiqueComparateur({
+  lignes,
+  survole,
+  onSurvoler,
+}: {
+  lignes: LigneComparateurResponse[];
+  survole: number | null;
+  onSurvoler: (index: number | null) => void;
+}) {
+  const largeur = 720;
+  const hauteur = 160;
+  const marge = { haut: 20, droite: 12, bas: 22, gauche: 12 };
+  const largeurTrace = largeur - marge.gauche - marge.droite;
+  const hauteurTrace = hauteur - marge.haut - marge.bas;
+  const n = lignes.length;
+  const largeurCreneau = largeurTrace / n;
+  const largeurBarre = Math.min(64, largeurCreneau - 16);
+  const maxVal = Math.max(1, ...lignes.map((l) => l.rendementNetNetAnnee1Pourcent));
+
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="text-sm font-semibold text-slate-700">Rendement net-net par scénario</h3>
+      <svg
+        viewBox={`0 0 ${largeur} ${hauteur}`}
+        className="mt-2 w-full"
+        role="img"
+        aria-label="Comparaison du rendement net-net des scénarios"
+      >
+        <line
+          x1={marge.gauche} y1={marge.haut + hauteurTrace} x2={largeur - marge.droite} y2={marge.haut + hauteurTrace}
+          stroke={COULEUR_GRILLE} strokeWidth={1}
+        />
+        {lignes.map((l, i) => {
+          const h = (l.rendementNetNetAnnee1Pourcent / maxVal) * hauteurTrace;
+          const x = marge.gauche + i * largeurCreneau + (largeurCreneau - largeurBarre) / 2;
+          const y = marge.haut + hauteurTrace - h;
+          const couleur = l.cashFlowMoyenApresImpotEnCentimes < 0 ? COULEUR_NEGATIF : COULEUR_POSITIF;
+          return (
+            <g key={l.simulationId}>
+              <rect
+                x={x} y={y} width={largeurBarre} height={Math.max(h, 1)} rx={2}
+                fill={couleur}
+                opacity={survole === null || survole === i ? 1 : 0.55}
+                tabIndex={0}
+                role="img"
+                aria-label={`${l.nomScenario} : rendement net-net ${formaterPourcent(l.rendementNetNetAnnee1Pourcent)}`}
+                onMouseEnter={() => onSurvoler(i)}
+                onMouseLeave={() => onSurvoler(null)}
+                onFocus={() => onSurvoler(i)}
+                onBlur={() => onSurvoler(null)}
+              >
+                <title>{`${l.nomScenario} : ${formaterPourcent(l.rendementNetNetAnnee1Pourcent)}`}</title>
+              </rect>
+              <text x={x + largeurBarre / 2} y={y - 8} textAnchor="middle" fontSize={12} fontWeight={600} fill="#0f172a">
+                {formaterPourcent(l.rendementNetNetAnnee1Pourcent)}
+              </text>
+              <text x={x + largeurBarre / 2} y={hauteur - 6} textAnchor="middle" fontSize={11} fill={COULEUR_TEXTE_MUET}>
+                {l.nomScenario}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
 
 export function ComparateurSimulationsPage({
   bienId,
@@ -18,6 +88,7 @@ export function ComparateurSimulationsPage({
   const { session } = useAuth();
   const [lignes, setLignes] = useState<LigneComparateurResponse[]>([]);
   const [etat, setEtat] = useState<EtatChargement>('chargement');
+  const [survole, setSurvole] = useState<number | null>(null);
 
   useEffect(() => {
     if (!session) return;
@@ -60,6 +131,9 @@ export function ComparateurSimulationsPage({
         <>
           {/* lignes est toujours non vide ici : le useEffect redirige directement vers le
               formulaire de nouvelle simulation si aucun scénario n'existe encore pour ce bien. */}
+            <div className="mb-4">
+              <GraphiqueComparateur lignes={lignes} survole={survole} onSurvoler={setSurvole} />
+            </div>
             <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50">
@@ -75,11 +149,13 @@ export function ComparateurSimulationsPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {lignes.map((l) => (
+                  {lignes.map((l, i) => (
                     <tr
                       key={l.simulationId}
                       onClick={() => onVoirDetail(l.simulationId)}
-                      className="cursor-pointer hover:bg-slate-50"
+                      onMouseEnter={() => setSurvole(i)}
+                      onMouseLeave={() => setSurvole(null)}
+                      className={`cursor-pointer hover:bg-slate-50 ${survole === i ? 'bg-slate-50' : ''}`}
                     >
                       <td className="px-4 py-2 font-medium text-slate-900">{l.nomScenario}</td>
                       <td className="px-4 py-2 text-slate-600">
@@ -110,7 +186,7 @@ export function ComparateurSimulationsPage({
           <button
             type="button"
             onClick={onNouvelleSimulation}
-            className="mt-6 w-full rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            className="mt-6 w-full rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
           >
             + Nouvelle simulation
           </button>

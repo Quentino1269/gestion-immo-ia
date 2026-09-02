@@ -11,12 +11,16 @@ import com.immo.gestion.rentabilite.domain.ProjectionCalculateur;
 import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabilite;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteId;
+import com.immo.gestion.rentabilite.domain.SimulationRentabiliteModifiee;
 import com.immo.gestion.rentabilite.domain.port.in.BienNonTrouveException;
-import com.immo.gestion.rentabilite.domain.port.in.DroitInsuffisantSurBienException;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.rentabilite.domain.port.in.LancerSimulationRentabiliteCommand;
 import com.immo.gestion.rentabilite.domain.port.in.LancerSimulationRentabiliteUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.LignesRevenuIncoherentesException;
+import com.immo.gestion.rentabilite.domain.port.in.ModifierSimulationRentabiliteCommand;
+import com.immo.gestion.rentabilite.domain.port.in.ModifierSimulationRentabiliteUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirComparateurUseCase;
+import com.immo.gestion.rentabilite.domain.port.in.ObtenirHistoriqueSimulationUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirSimulationUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;
@@ -24,6 +28,7 @@ import com.immo.gestion.rentabilite.domain.port.in.TypeBienInvalidePourSimulatio
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteQueryRepository;
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteRepository;
 import com.immo.gestion.shared.domain.DomainEvent;
+import com.immo.gestion.shared.domain.EtatCharge;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,7 +42,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class SimulationRentabiliteService
-        implements LancerSimulationRentabiliteUseCase, ObtenirSimulationUseCase, ObtenirComparateurUseCase {
+        implements LancerSimulationRentabiliteUseCase, ObtenirSimulationUseCase, ObtenirComparateurUseCase,
+                   ModifierSimulationRentabiliteUseCase, ObtenirHistoriqueSimulationUseCase {
 
     private final SimulationRentabiliteRepository repository;
     private final SimulationRentabiliteQueryRepository queryRepository;
@@ -117,6 +123,85 @@ public class SimulationRentabiliteService
         repository.enregistrer(simulation.id(), 0L, List.of(evenement));
 
         return simulation;
+    }
+
+    @Override
+    @Transactional
+    public SimulationRentabilite modifier(ModifierSimulationRentabiliteCommand commande) {
+        EtatCharge<SimulationRentabilite> etatCharge = repository.chargerParId(commande.simulationId())
+                .orElseThrow(() -> new SimulationNonTrouveeException(commande.simulationId()));
+        SimulationRentabilite existante = etatCharge.aggregat();
+
+        // Le lanceur (et donc le modificateur légitime) d'une simulation est, par construction
+        // (I-SIM-2), l'ayant droit du bien au moment du calcul initial.
+        if (!existante.utilisateurId().equals(commande.utilisateurId())) {
+            throw new DroitInsuffisantSurBienException();
+        }
+
+        Bien bienRacine = bienQueryRepository.chargerParId(existante.bienId())
+                .orElseThrow(() -> new BienNonTrouveException(existante.bienId()));
+        // I-SIM-3, réévalué : le régime fiscal peut changer lors d'une modification.
+        if (!commande.regimeFiscal().compatibleAvecMeuble(bienRacine.meuble())) {
+            throw new RegimeFiscalIncoherentException();
+        }
+
+        List<Bien> chambresActives = bienQueryRepository.chargerChambresParParent(existante.bienId());
+        verifierLignesRevenu(existante.bienId(), chambresActives, commande.revenusLocatifsSimules());
+
+        long coutTotal = commande.acquisition().coutTotalEnCentimes();
+        long apport = coutTotal - commande.financement().montantEmprunteEnCentimes();
+
+        List<LigneProjection> projection = ProjectionCalculateur.calculer(
+                commande.regimeFiscal(),
+                commande.tmiFoyerPourcent(),
+                commande.horizonAnnees(),
+                commande.acquisition(),
+                commande.financement(),
+                commande.amortissement(),
+                commande.revenusLocatifsSimules(),
+                commande.chargesRecurrentes(),
+                commande.hypothesesEvolution()
+        );
+
+        SimulationRentabilite miseAJour = new SimulationRentabilite(
+                existante.id(),
+                existante.bienId(),
+                existante.utilisateurId(),
+                commande.nomScenario(),
+                commande.regimeFiscal(),
+                commande.tmiFoyerPourcent(),
+                commande.horizonAnnees(),
+                commande.acquisition(),
+                commande.financement(),
+                commande.amortissement(),
+                commande.revenusLocatifsSimules(),
+                commande.chargesRecurrentes(),
+                commande.hypothesesEvolution(),
+                coutTotal,
+                apport,
+                projection,
+                Instant.now(clock)
+        );
+
+        // Append-only (D2 revisité) : ce fait s'ajoute au flux existant, il ne le remplace pas —
+        // toutes les versions antérieures restent rejouables via l'historique.
+        DomainEvent evenement = SimulationRentabiliteModifiee.depuis(miseAJour);
+        repository.enregistrer(existante.id(), etatCharge.version(), List.of(evenement));
+
+        return miseAJour;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<SimulationRentabilite> obtenirHistorique(SimulationRentabiliteId id, UtilisateurId demandeurId) {
+        List<SimulationRentabilite> historique = repository.chargerHistorique(id);
+        if (historique.isEmpty()) {
+            throw new SimulationNonTrouveeException(id);
+        }
+        if (!historique.get(0).utilisateurId().equals(demandeurId)) {
+            throw new DroitInsuffisantSurBienException();
+        }
+        return historique;
     }
 
     @Override

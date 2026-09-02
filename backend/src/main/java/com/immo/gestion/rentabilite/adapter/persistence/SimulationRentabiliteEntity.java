@@ -124,7 +124,9 @@ public class SimulationRentabiliteEntity {
     @Column(name = "projection_annuelle", nullable = false)
     private String projectionAnnuelleJson;
 
-    @Column(name = "simule_le", nullable = false, updatable = false)
+    // Pas d'updatable = false : ce champ représente la date de calcul de la version COURANTE
+    // (recalculée à chaque modification, cf. SimulationRentabiliteModifiee), pas la date de création.
+    @Column(name = "simule_le", nullable = false)
     private Instant simuleLe;
 
     protected SimulationRentabiliteEntity() {

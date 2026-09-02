@@ -170,4 +170,78 @@ class SimulationRentabiliteDomainTest {
         )).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("revenusLocatifsSimules");
     }
+
+    // --- reconstruire / reconstruireHistorique (Event Sourcing, D2 revisité) ---
+
+    @Test
+    void reconstruire_avec_un_seul_evenement_rend_l_etat_initial() {
+        SimulationRentabilite creation = simulation("Achat cash", 30, 1, 20_000_000L, 0L);
+        RentabiliteSimulee evenement = RentabiliteSimulee.depuis(creation);
+
+        SimulationRentabilite reconstruite = SimulationRentabilite.reconstruire(List.of(evenement));
+
+        assertThat(reconstruite).isEqualTo(creation);
+    }
+
+    @Test
+    void reconstruire_applique_les_modifications_dans_l_ordre_en_gardant_id_bien_et_utilisateur() {
+        SimulationRentabilite creation = simulation("Scénario initial", 30, 1, 20_000_000L, 0L);
+        SimulationRentabilite premiereModif = new SimulationRentabilite(
+                creation.id(), creation.bienId(), creation.utilisateurId(),
+                "Scénario renommé", creation.regimeFiscal(), creation.tmiFoyerPourcent(), creation.horizonAnnees(),
+                creation.acquisition(), creation.financement(), creation.amortissement(),
+                creation.revenusLocatifsSimules(), creation.chargesRecurrentes(), creation.hypothesesEvolution(),
+                creation.coutTotalAcquisitionEnCentimes(), creation.apportPersonnelEnCentimes(),
+                creation.projectionAnnuelle(), T.plusSeconds(60)
+        );
+
+        List<com.immo.gestion.shared.domain.DomainEvent> flux = List.of(
+                RentabiliteSimulee.depuis(creation),
+                SimulationRentabiliteModifiee.depuis(premiereModif)
+        );
+
+        SimulationRentabilite reconstruite = SimulationRentabilite.reconstruire(flux);
+
+        assertThat(reconstruite.id()).isEqualTo(creation.id());
+        assertThat(reconstruite.bienId()).isEqualTo(creation.bienId());
+        assertThat(reconstruite.utilisateurId()).isEqualTo(creation.utilisateurId());
+        assertThat(reconstruite.nomScenario()).isEqualTo("Scénario renommé");
+        assertThat(reconstruite.simuleLe()).isEqualTo(T.plusSeconds(60));
+    }
+
+    @Test
+    void reconstruire_flux_vide_leve_exception() {
+        assertThatThrownBy(() -> SimulationRentabilite.reconstruire(List.of()))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void reconstruire_flux_ne_commencant_pas_par_rentabilite_simulee_leve_exception() {
+        SimulationRentabilite creation = simulation("Scénario", 30, 1, 20_000_000L, 0L);
+        assertThatThrownBy(() -> SimulationRentabilite.reconstruire(
+                List.of(SimulationRentabiliteModifiee.depuis(creation))))
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void reconstruire_historique_rend_un_etat_par_evenement_dans_l_ordre() {
+        SimulationRentabilite creation = simulation("Scénario initial", 30, 1, 20_000_000L, 0L);
+        SimulationRentabilite premiereModif = new SimulationRentabilite(
+                creation.id(), creation.bienId(), creation.utilisateurId(),
+                "Scénario renommé", creation.regimeFiscal(), creation.tmiFoyerPourcent(), creation.horizonAnnees(),
+                creation.acquisition(), creation.financement(), creation.amortissement(),
+                creation.revenusLocatifsSimules(), creation.chargesRecurrentes(), creation.hypothesesEvolution(),
+                creation.coutTotalAcquisitionEnCentimes(), creation.apportPersonnelEnCentimes(),
+                creation.projectionAnnuelle(), T.plusSeconds(60)
+        );
+
+        List<SimulationRentabilite> historique = SimulationRentabilite.reconstruireHistorique(List.of(
+                RentabiliteSimulee.depuis(creation),
+                SimulationRentabiliteModifiee.depuis(premiereModif)
+        ));
+
+        assertThat(historique).hasSize(2);
+        assertThat(historique.get(0).nomScenario()).isEqualTo("Scénario initial");
+        assertThat(historique.get(1).nomScenario()).isEqualTo("Scénario renommé");
+    }
 }

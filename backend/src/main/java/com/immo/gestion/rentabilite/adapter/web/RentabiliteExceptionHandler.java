@@ -1,7 +1,7 @@
 package com.immo.gestion.rentabilite.adapter.web;
 
 import com.immo.gestion.rentabilite.domain.port.in.BienNonTrouveException;
-import com.immo.gestion.rentabilite.domain.port.in.DroitInsuffisantSurBienException;
+import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.rentabilite.domain.port.in.LignesRevenuIncoherentesException;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;

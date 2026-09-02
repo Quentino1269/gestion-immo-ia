@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPut } from './client';
 
 export type RegimeFiscal = 'MICRO_FONCIER' | 'REEL_FONCIER' | 'MICRO_BIC' | 'REEL_BIC';
 
@@ -141,4 +141,43 @@ export function obtenirDetailSimulation(
   token: string,
 ): Promise<SimulationRentabiliteResponse> {
   return apiGet<SimulationRentabiliteResponse>(`/api/simulations-rentabilite/${simulationId}`, token);
+}
+
+/** Modifie une simulation existante : append-only côté serveur (event sourcing), garde son id et
+ * son historique — voir obtenirHistoriqueSimulation. */
+export function modifierSimulation(
+  simulationId: string,
+  payload: LancerSimulationRentabilitePayload,
+  token: string,
+): Promise<SimulationRentabiliteResponse> {
+  return apiPut<LancerSimulationRentabilitePayload, SimulationRentabiliteResponse>(
+    `/api/simulations-rentabilite/${simulationId}`,
+    payload,
+    token,
+  );
+}
+
+/** Historique des versions d'une simulation, de la plus ancienne à la plus récente. */
+export function obtenirHistoriqueSimulation(
+  simulationId: string,
+  token: string,
+): Promise<SimulationRentabiliteResponse[]> {
+  return apiGet<SimulationRentabiliteResponse[]>(`/api/simulations-rentabilite/${simulationId}/historique`, token);
+}
+
+/** Reconstruit un payload de soumission à partir d'une version passée ou courante d'une
+ * simulation — les deux types partagent la même forme pour les champs saisis. */
+export function payloadDepuisSimulation(s: SimulationRentabiliteResponse): LancerSimulationRentabilitePayload {
+  return {
+    nomScenario: s.nomScenario,
+    regimeFiscal: s.regimeFiscal,
+    tmiFoyerPourcent: s.tmiFoyerPourcent,
+    horizonAnnees: s.horizonAnnees,
+    acquisition: s.acquisition,
+    financement: s.financement,
+    amortissement: s.amortissement,
+    revenusLocatifsSimules: s.revenusLocatifsSimules,
+    chargesRecurrentes: s.chargesRecurrentes,
+    hypothesesEvolution: s.hypothesesEvolution,
+  };
 }

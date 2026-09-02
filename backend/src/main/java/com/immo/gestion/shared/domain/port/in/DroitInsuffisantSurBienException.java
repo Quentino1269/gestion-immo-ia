@@ -1,6 +1,6 @@
-package com.immo.gestion.rentabilite.domain.port.in;
+package com.immo.gestion.shared.domain.port.in;
 
-/** I-SIM-2 : seul un ayant droit du bien peut lancer/consulter une simulation le concernant. */
+/** Seul l'ayant droit d'un bien peut agir sur ce bien ou sur ce qui en dépend (ex. simulations). */
 public class DroitInsuffisantSurBienException extends RuntimeException {
 
     public DroitInsuffisantSurBienException() {
