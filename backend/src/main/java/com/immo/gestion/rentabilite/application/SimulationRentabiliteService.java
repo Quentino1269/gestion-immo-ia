@@ -4,10 +4,16 @@ import com.immo.gestion.bien.domain.Bien;
 import com.immo.gestion.bien.domain.BienId;
 import com.immo.gestion.bien.domain.TypeBien;
 import com.immo.gestion.bien.domain.port.out.BienQueryRepository;
+import com.immo.gestion.rentabilite.domain.HypothesesEvolution;
 import com.immo.gestion.rentabilite.domain.LigneComparateur;
 import com.immo.gestion.rentabilite.domain.LigneProjection;
 import com.immo.gestion.rentabilite.domain.LigneRevenuSimule;
+import com.immo.gestion.rentabilite.domain.ParametresAcquisition;
+import com.immo.gestion.rentabilite.domain.ParametresAmortissement;
+import com.immo.gestion.rentabilite.domain.ParametresChargesRecurrentes;
+import com.immo.gestion.rentabilite.domain.ParametresFinancement;
 import com.immo.gestion.rentabilite.domain.ProjectionCalculateur;
+import com.immo.gestion.rentabilite.domain.RegimeFiscal;
 import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabilite;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteId;
@@ -84,22 +90,7 @@ public class SimulationRentabiliteService
         List<Bien> chambresActives = bienQueryRepository.chargerChambresParParent(commande.bienId());
         verifierLignesRevenu(commande.bienId(), chambresActives, commande.revenusLocatifsSimules());
 
-        long coutTotal = commande.acquisition().coutTotalEnCentimes();
-        long apport = coutTotal - commande.financement().montantEmprunteEnCentimes();
-
-        List<LigneProjection> projection = ProjectionCalculateur.calculer(
-                commande.regimeFiscal(),
-                commande.tmiFoyerPourcent(),
-                commande.horizonAnnees(),
-                commande.acquisition(),
-                commande.financement(),
-                commande.amortissement(),
-                commande.revenusLocatifsSimules(),
-                commande.chargesRecurrentes(),
-                commande.hypothesesEvolution()
-        );
-
-        SimulationRentabilite simulation = new SimulationRentabilite(
+        SimulationRentabilite simulation = construire(
                 SimulationRentabiliteId.nouveau(),
                 commande.bienId(),
                 commande.utilisateurId(),
@@ -112,11 +103,7 @@ public class SimulationRentabiliteService
                 commande.amortissement(),
                 commande.revenusLocatifsSimules(),
                 commande.chargesRecurrentes(),
-                commande.hypothesesEvolution(),
-                coutTotal,
-                apport,
-                projection,
-                Instant.now(clock)
+                commande.hypothesesEvolution()
         );
 
         DomainEvent evenement = RentabiliteSimulee.depuis(simulation);
@@ -148,22 +135,7 @@ public class SimulationRentabiliteService
         List<Bien> chambresActives = bienQueryRepository.chargerChambresParParent(existante.bienId());
         verifierLignesRevenu(existante.bienId(), chambresActives, commande.revenusLocatifsSimules());
 
-        long coutTotal = commande.acquisition().coutTotalEnCentimes();
-        long apport = coutTotal - commande.financement().montantEmprunteEnCentimes();
-
-        List<LigneProjection> projection = ProjectionCalculateur.calculer(
-                commande.regimeFiscal(),
-                commande.tmiFoyerPourcent(),
-                commande.horizonAnnees(),
-                commande.acquisition(),
-                commande.financement(),
-                commande.amortissement(),
-                commande.revenusLocatifsSimules(),
-                commande.chargesRecurrentes(),
-                commande.hypothesesEvolution()
-        );
-
-        SimulationRentabilite miseAJour = new SimulationRentabilite(
+        SimulationRentabilite miseAJour = construire(
                 existante.id(),
                 existante.bienId(),
                 existante.utilisateurId(),
@@ -176,11 +148,7 @@ public class SimulationRentabiliteService
                 commande.amortissement(),
                 commande.revenusLocatifsSimules(),
                 commande.chargesRecurrentes(),
-                commande.hypothesesEvolution(),
-                coutTotal,
-                apport,
-                projection,
-                Instant.now(clock)
+                commande.hypothesesEvolution()
         );
 
         // Append-only (D2 revisité) : ce fait s'ajoute au flux existant, il ne le remplace pas —
@@ -227,6 +195,57 @@ public class SimulationRentabiliteService
         return queryRepository.chargerParBien(bienId).stream()
                 .map(LigneComparateur::depuis)
                 .toList();
+    }
+
+    private SimulationRentabilite construire(
+            SimulationRentabiliteId id,
+            BienId bienId,
+            UtilisateurId utilisateurId,
+            String nomScenario,
+            RegimeFiscal regimeFiscal,
+            int tmiFoyerPourcent,
+            int horizonAnnees,
+            ParametresAcquisition acquisition,
+            ParametresFinancement financement,
+            ParametresAmortissement amortissement,
+            List<LigneRevenuSimule> revenusLocatifsSimules,
+            ParametresChargesRecurrentes chargesRecurrentes,
+            HypothesesEvolution hypothesesEvolution
+    ) {
+        long coutTotal = acquisition.coutTotalEnCentimes();
+        long apport = coutTotal - financement.montantEmprunteEnCentimes();
+
+        List<LigneProjection> projection = ProjectionCalculateur.calculer(
+                regimeFiscal,
+                tmiFoyerPourcent,
+                horizonAnnees,
+                acquisition,
+                financement,
+                amortissement,
+                revenusLocatifsSimules,
+                chargesRecurrentes,
+                hypothesesEvolution
+        );
+
+        return new SimulationRentabilite(
+                id,
+                bienId,
+                utilisateurId,
+                nomScenario,
+                regimeFiscal,
+                tmiFoyerPourcent,
+                horizonAnnees,
+                acquisition,
+                financement,
+                amortissement,
+                revenusLocatifsSimules,
+                chargesRecurrentes,
+                hypothesesEvolution,
+                coutTotal,
+                apport,
+                projection,
+                Instant.now(clock)
+        );
     }
 
     // --- I-SIM-11 ---

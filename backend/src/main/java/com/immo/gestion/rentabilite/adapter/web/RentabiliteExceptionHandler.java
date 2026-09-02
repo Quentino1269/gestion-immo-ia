@@ -52,8 +52,9 @@ public class RentabiliteExceptionHandler {
     }
 
     /**
-     * Concurrence optimiste (Event Sourcing, MISSION §5). Pas encore atteignable en pratique
-     * (SimulationRentabilite est create-only en V1, D2), mappé par cohérence.
+     * Concurrence optimiste (Event Sourcing, MISSION §5) : atteignable en pratique depuis l'ajout
+     * de la modification de simulation (ModifierSimulationRentabiliteUseCase) — deux PUT
+     * concurrents sur la même simulation peuvent se disputer la même version chargée.
      */
     @ExceptionHandler(ConflitDeVersionException.class)
     public ResponseEntity<ApiError> conflitDeVersion(ConflitDeVersionException ex) {

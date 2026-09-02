@@ -136,9 +136,17 @@ public class RentabiliteController {
         return ResponseEntity.ok(versions);
     }
 
-    private ModifierSimulationRentabiliteCommand versCommandeModification(
-            SimulationRentabiliteId simulationId, UtilisateurId uid, LancerSimulationRentabiliteRequest r
+    private record ParametresPartages(
+            ParametresAcquisition acquisition,
+            ParametresFinancement financement,
+            ParametresAmortissement amortissement,
+            List<LigneRevenuSimule> revenus,
+            ParametresChargesRecurrentes chargesRecurrentes,
+            HypothesesEvolution hypothesesEvolution
     ) {
+    }
+
+    private ParametresPartages versParametres(LancerSimulationRentabiliteRequest r) {
         List<LigneRevenuSimule> revenus = r.revenusLocatifsSimules().stream()
                 .map(l -> new LigneRevenuSimule(
                         new BienId(l.bienSourceId()),
@@ -147,13 +155,7 @@ public class RentabiliteController {
                 ))
                 .toList();
 
-        return new ModifierSimulationRentabiliteCommand(
-                simulationId,
-                uid,
-                r.nomScenario(),
-                r.regimeFiscal(),
-                r.tmiFoyerPourcent(),
-                r.horizonAnnees(),
+        return new ParametresPartages(
                 new ParametresAcquisition(
                         r.acquisition().prixAchatEnCentimes(),
                         r.acquisition().fraisNotaireEnCentimes(),
@@ -191,15 +193,28 @@ public class RentabiliteController {
         );
     }
 
-    private LancerSimulationRentabiliteCommand versCommande(BienId bienId, UtilisateurId uid, LancerSimulationRentabiliteRequest r) {
-        List<LigneRevenuSimule> revenus = r.revenusLocatifsSimules().stream()
-                .map(l -> new LigneRevenuSimule(
-                        new BienId(l.bienSourceId()),
-                        l.loyerSimuleMensuelEnCentimes(),
-                        l.chargesSimuleesMensuellesEnCentimes()
-                ))
-                .toList();
+    private ModifierSimulationRentabiliteCommand versCommandeModification(
+            SimulationRentabiliteId simulationId, UtilisateurId uid, LancerSimulationRentabiliteRequest r
+    ) {
+        ParametresPartages p = versParametres(r);
+        return new ModifierSimulationRentabiliteCommand(
+                simulationId,
+                uid,
+                r.nomScenario(),
+                r.regimeFiscal(),
+                r.tmiFoyerPourcent(),
+                r.horizonAnnees(),
+                p.acquisition(),
+                p.financement(),
+                p.amortissement(),
+                p.revenus(),
+                p.chargesRecurrentes(),
+                p.hypothesesEvolution()
+        );
+    }
 
+    private LancerSimulationRentabiliteCommand versCommande(BienId bienId, UtilisateurId uid, LancerSimulationRentabiliteRequest r) {
+        ParametresPartages p = versParametres(r);
         return new LancerSimulationRentabiliteCommand(
                 bienId,
                 uid,
@@ -207,40 +222,12 @@ public class RentabiliteController {
                 r.regimeFiscal(),
                 r.tmiFoyerPourcent(),
                 r.horizonAnnees(),
-                new ParametresAcquisition(
-                        r.acquisition().prixAchatEnCentimes(),
-                        r.acquisition().fraisNotaireEnCentimes(),
-                        r.acquisition().fraisAgenceEnCentimes(),
-                        r.acquisition().travauxAlAcquisitionEnCentimes(),
-                        r.acquisition().fraisDossierBancaireEnCentimes()
-                ),
-                new ParametresFinancement(
-                        r.financement().montantEmprunteEnCentimes(),
-                        r.financement().tauxAnnuelPourcent(),
-                        r.financement().dureeAnnees(),
-                        r.financement().tauxAssuranceEmprunteurPourcent()
-                ),
-                new ParametresAmortissement(
-                        r.amortissement().quotePartTerrainPourcent(),
-                        r.amortissement().quotePartMobilierPourcent(),
-                        r.amortissement().dureeAmortissementBatiAnnees(),
-                        r.amortissement().dureeAmortissementMobilierAnnees()
-                ),
-                revenus,
-                new ParametresChargesRecurrentes(
-                        r.chargesRecurrentes().taxeFonciereEnCentimes(),
-                        r.chargesRecurrentes().assurancePnoEnCentimes(),
-                        r.chargesRecurrentes().assuranceLoyersImpayesEnCentimes(),
-                        r.chargesRecurrentes().fraisGestionLocativePourcentLoyer(),
-                        r.chargesRecurrentes().provisionTravauxAnnuelleEnCentimes(),
-                        r.chargesRecurrentes().fraisComptabiliteAnnuelEnCentimes(),
-                        r.chargesRecurrentes().chargesCoproprieteNonRecuperablesEnCentimes()
-                ),
-                new HypothesesEvolution(
-                        r.hypothesesEvolution().tauxVacanceLocativePourcent(),
-                        r.hypothesesEvolution().tauxIndexationLoyerPourcent(),
-                        r.hypothesesEvolution().tauxIndexationChargesPourcent()
-                )
+                p.acquisition(),
+                p.financement(),
+                p.amortissement(),
+                p.revenus(),
+                p.chargesRecurrentes(),
+                p.hypothesesEvolution()
         );
     }
 }

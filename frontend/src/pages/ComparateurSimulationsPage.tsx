@@ -24,7 +24,10 @@ function GraphiqueComparateur({
   const n = lignes.length;
   const largeurCreneau = largeurTrace / n;
   const largeurBarre = Math.min(64, largeurCreneau - 16);
-  const maxVal = Math.max(1, ...lignes.map((l) => l.rendementNetNetAnnee1Pourcent));
+  // Ligne de base au milieu (comme GraphiqueCashFlow) : un rendement net-net peut être négatif
+  // (scénario perdant), la barre descend alors sous la ligne plutôt que de déborder du canevas.
+  const baseline = marge.haut + hauteurTrace / 2;
+  const maxAbs = Math.max(1, ...lignes.map((l) => Math.abs(l.rendementNetNetAnnee1Pourcent)));
 
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
@@ -36,13 +39,14 @@ function GraphiqueComparateur({
         aria-label="Comparaison du rendement net-net des scénarios"
       >
         <line
-          x1={marge.gauche} y1={marge.haut + hauteurTrace} x2={largeur - marge.droite} y2={marge.haut + hauteurTrace}
+          x1={marge.gauche} y1={baseline} x2={largeur - marge.droite} y2={baseline}
           stroke={COULEUR_GRILLE} strokeWidth={1}
         />
         {lignes.map((l, i) => {
-          const h = (l.rendementNetNetAnnee1Pourcent / maxVal) * hauteurTrace;
+          const v = l.rendementNetNetAnnee1Pourcent;
+          const h = (Math.abs(v) / maxAbs) * (hauteurTrace / 2 - 2);
           const x = marge.gauche + i * largeurCreneau + (largeurCreneau - largeurBarre) / 2;
-          const y = marge.haut + hauteurTrace - h;
+          const y = v >= 0 ? baseline - h : baseline;
           const couleur = l.cashFlowMoyenApresImpotEnCentimes < 0 ? COULEUR_NEGATIF : COULEUR_POSITIF;
           return (
             <g key={l.simulationId}>
@@ -52,16 +56,19 @@ function GraphiqueComparateur({
                 opacity={survole === null || survole === i ? 1 : 0.55}
                 tabIndex={0}
                 role="img"
-                aria-label={`${l.nomScenario} : rendement net-net ${formaterPourcent(l.rendementNetNetAnnee1Pourcent)}`}
+                aria-label={`${l.nomScenario} : rendement net-net ${formaterPourcent(v)}`}
                 onMouseEnter={() => onSurvoler(i)}
                 onMouseLeave={() => onSurvoler(null)}
                 onFocus={() => onSurvoler(i)}
                 onBlur={() => onSurvoler(null)}
               >
-                <title>{`${l.nomScenario} : ${formaterPourcent(l.rendementNetNetAnnee1Pourcent)}`}</title>
+                <title>{`${l.nomScenario} : ${formaterPourcent(v)}`}</title>
               </rect>
-              <text x={x + largeurBarre / 2} y={y - 8} textAnchor="middle" fontSize={12} fontWeight={600} fill="#0f172a">
-                {formaterPourcent(l.rendementNetNetAnnee1Pourcent)}
+              <text
+                x={x + largeurBarre / 2} y={v >= 0 ? y - 8 : y + h + 14}
+                textAnchor="middle" fontSize={12} fontWeight={600} fill="#0f172a"
+              >
+                {formaterPourcent(v)}
               </text>
               <text x={x + largeurBarre / 2} y={hauteur - 6} textAnchor="middle" fontSize={11} fill={COULEUR_TEXTE_MUET}>
                 {l.nomScenario}

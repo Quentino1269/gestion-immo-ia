@@ -17,6 +17,7 @@ import { ApiError } from '../api/client';
 import type { EtatChargement } from '../lib/types';
 import { calculerApercuAnnee1 } from '../lib/apercuRentabilite';
 import { formaterEuros, formaterPourcent, eurosVersCentimes, pourcent } from '../lib/format';
+import { COULEUR_POSITIF } from '../lib/chartColors';
 
 type LigneRevenuUI = {
   bienSourceId: string;
@@ -564,7 +565,7 @@ export function NouvelleSimulationRentabilitePage({
         <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
           <div className="flex items-center gap-2">
             <svg
-              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2a78d6" strokeWidth={2}
+              width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={COULEUR_POSITIF} strokeWidth={2}
               strokeLinecap="round" strokeLinejoin="round"
             >
               <circle cx="12" cy="12" r="10" />

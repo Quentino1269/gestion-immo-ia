@@ -15,6 +15,10 @@ import type { EtatChargement } from '../lib/types';
 import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
 import { StatTuile } from '../components/StatTuile';
 
+function formaterHorodatage(iso: string): string {
+  return new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
+}
+
 function cellule(valeur: number, accentuerNegatif = false): string {
   if (accentuerNegatif && valeur < 0) return 'px-3 py-2 text-right text-red-600';
   return 'px-3 py-2 text-right text-slate-700';
@@ -480,7 +484,7 @@ export function SimulationRentabiliteDetailPage({
       <p className="mt-3 text-xs text-slate-400">
         « Solde déficit » cumule le déficit foncier et le déficit BIC reportables restant à
         absorber sur les résultats futurs (D11, D21 du slice). Version calculée le{' '}
-        {new Date(simulation.simuleLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}.
+        {formaterHorodatage(simulation.simuleLe)}.
       </p>
 
       {/* Historique des versions : la modification est event-sourcée (append-only) — chaque
@@ -527,7 +531,7 @@ export function SimulationRentabiliteDetailPage({
                         )}
                       </td>
                       <td className="px-4 py-2 text-slate-600">
-                        {new Date(version.simuleLe).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
+                        {formaterHorodatage(version.simuleLe)}
                       </td>
                       <td className="px-4 py-2 text-slate-700">{version.nomScenario}</td>
                       <td className="px-4 py-2 text-right text-slate-700">

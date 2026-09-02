@@ -93,14 +93,8 @@ public record SimulationRentabilite(
      * qui écrasent les champs modifiables (jamais {@code id}/{@code bienId}/{@code utilisateurId}).
      */
     public static SimulationRentabilite reconstruire(List<DomainEvent> evenements) {
-        if (evenements.isEmpty()) {
-            throw new IllegalStateException("Flux SimulationRentabilite vide : impossible de reconstruire l'aggregate");
-        }
-        SimulationRentabilite etat = null;
-        for (DomainEvent evenement : evenements) {
-            etat = appliquer(etat, evenement);
-        }
-        return etat;
+        List<SimulationRentabilite> historique = reconstruireHistorique(evenements);
+        return historique.get(historique.size() - 1);
     }
 
     /**
