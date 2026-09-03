@@ -77,6 +77,7 @@ export function AccueilPage() {
   if (vue === 'modifierBien' && bienSelectionne) {
     return (
       <ModifierBienPage
+        key={bienSelectionne}
         bienId={bienSelectionne}
         onModifie={() => setVue('portefeuille')}
         onModifierChambre={(chambreId) => setBienSelectionne(chambreId)}

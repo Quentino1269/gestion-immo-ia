@@ -245,4 +245,40 @@ class SimulationRentabiliteDomainTest {
         assertThat(historique.get(0).nomScenario()).isEqualTo("Scénario initial");
         assertThat(historique.get(1).nomScenario()).isEqualTo("Scénario renommé");
     }
+
+    // --- SimulationRentabiliteSupprimee (Suppression, D1/D7) ---
+
+    @Test
+    void reconstruire_applique_simulation_rentabilite_supprimee() {
+        SimulationRentabilite creation = simulation("Scénario à supprimer", 30, 1, 20_000_000L, 0L);
+        SimulationRentabiliteSupprimee suppression = new SimulationRentabiliteSupprimee(creation.id(), T.plusSeconds(60));
+
+        SimulationRentabilite reconstruite = SimulationRentabilite.reconstruire(List.of(
+                RentabiliteSimulee.depuis(creation),
+                suppression
+        ));
+
+        assertThat(reconstruite.supprimee()).isTrue();
+        assertThat(reconstruite.id()).isEqualTo(creation.id());
+        assertThat(reconstruite.bienId()).isEqualTo(creation.bienId());
+        assertThat(reconstruite.utilisateurId()).isEqualTo(creation.utilisateurId());
+        assertThat(reconstruite.nomScenario()).isEqualTo(creation.nomScenario());
+        assertThat(reconstruite.acquisition()).isEqualTo(creation.acquisition());
+        assertThat(reconstruite.projectionAnnuelle()).isEqualTo(creation.projectionAnnuelle());
+    }
+
+    @Test
+    void reconstruire_historique_marque_supprimee_uniquement_la_derniere_version() {
+        SimulationRentabilite creation = simulation("Scénario à supprimer", 30, 1, 20_000_000L, 0L);
+        SimulationRentabiliteSupprimee suppression = new SimulationRentabiliteSupprimee(creation.id(), T.plusSeconds(60));
+
+        List<SimulationRentabilite> historique = SimulationRentabilite.reconstruireHistorique(List.of(
+                RentabiliteSimulee.depuis(creation),
+                suppression
+        ));
+
+        assertThat(historique).hasSize(2);
+        assertThat(historique.get(0).supprimee()).isFalse();
+        assertThat(historique.get(1).supprimee()).isTrue();
+    }
 }

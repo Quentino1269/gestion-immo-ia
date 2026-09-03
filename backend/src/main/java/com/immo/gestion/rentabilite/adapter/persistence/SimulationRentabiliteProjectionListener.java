@@ -69,8 +69,10 @@ public class SimulationRentabiliteProjectionListener {
     @EventListener
     public void surSimulationRentabiliteSupprimee(SimulationRentabiliteSupprimee evenement) {
         // Retire la projection de lecture uniquement (D2 : disparition totale côté API) — le fait
-        // reste, lui, définitivement dans l'event store (MISSION §5, append-only).
-        jpa.deleteById(evenement.simulationId().valeur());
+        // reste, lui, définitivement dans l'event store (MISSION §5, append-only). Idempotent
+        // (findById + delete plutôt que deleteById) : une redélivraison de l'événement ne doit pas
+        // lever d'exception si la ligne a déjà été retirée.
+        jpa.findById(evenement.simulationId().valeur()).ifPresent(jpa::delete);
     }
 
     private SimulationRentabiliteEntity construire(
