@@ -204,7 +204,7 @@ export function ModifierBienPage({
 
           <form onSubmit={soumettre} className="space-y-6">
             <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-              <legend className="px-1 text-sm font-semibold text-slate-700">Identité</legend>
+              <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Identité</legend>
               <div className="mt-4 space-y-4">
                 {estChambre ? (
                   <div>
@@ -239,7 +239,7 @@ export function ModifierBienPage({
             </fieldset>
 
             <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-              <legend className="px-1 text-sm font-semibold text-slate-700">Loyer et charges</legend>
+              <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Loyer et charges</legend>
               <div className="mt-4 space-y-4">
                 <div className="flex items-center gap-2">
                   <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
@@ -317,7 +317,7 @@ export function ModifierBienPage({
 
           {!estChambre && (
             <fieldset className="mt-6 rounded-md border border-slate-200 bg-white p-4">
-              <legend className="px-1 text-sm font-semibold text-slate-700">Chambres</legend>
+              <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Chambres</legend>
               <div className="mt-4 space-y-3">
                 {chambresExistantes.length === 0 && !nouvelleChambre && (
                   <p className="text-xs text-slate-500">Aucune chambre rattachée à ce bien pour le moment.</p>

@@ -154,7 +154,7 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
       <form onSubmit={soumettre} className="space-y-6">
         {/* Identité */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Identité</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Identité</legend>
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">Civilité</label>
@@ -226,7 +226,7 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
 
         {/* Coordonnées */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Coordonnées</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Coordonnées</legend>
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-700">Téléphone (format E.164)</label>
             <input
@@ -242,7 +242,7 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
 
         {/* Adresse de domicile */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Adresse de domicile</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Adresse de domicile</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>

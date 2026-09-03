@@ -47,6 +47,13 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
   const modaliteCharges: ModaliteCharges = meuble ? 'FORFAIT' : 'PROVISION';
   const surfaceChambresEnM2 = chambres.reduce((s, c) => s + (parseFloat(c.surfaceM2.replace(',', '.')) || 0), 0);
 
+  // Pour une colocation avec au moins une chambre saisie, le loyer et les charges du bien
+  // parent sont dérivés (somme des chambres) plutôt que saisis manuellement — un immeuble en
+  // colocation perçoit mécaniquement la somme des loyers/charges de ses chambres.
+  const loyerDeriveDesChambres = estColocation && chambres.length > 0;
+  const loyerChambresEnCentimes = chambres.reduce((s, c) => s + eurosVersCentimes(c.loyerEuros), 0);
+  const chargesChambresEnCentimes = chambres.reduce((s, c) => s + eurosVersCentimes(c.chargesEuros), 0);
+
   function majChambre(cle: string, chambre: ChambreUI) {
     setChambres((prev) => prev.map((c) => (c.cle === cle ? chambre : c)));
   }
@@ -79,8 +86,8 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
             nbPiecesPrincipales: parseInt(nbPieces, 10) || 1,
             surfaceM2: parseFloat(surfaceM2.replace(',', '.')) || 0,
             meuble,
-            loyerHorsChargesEnCentimes: eurosVersCentimes(loyerEuros),
-            chargesEnCentimes: eurosVersCentimes(chargesEuros),
+            loyerHorsChargesEnCentimes: loyerDeriveDesChambres ? loyerChambresEnCentimes : eurosVersCentimes(loyerEuros),
+            chargesEnCentimes: loyerDeriveDesChambres ? chargesChambresEnCentimes : eurosVersCentimes(chargesEuros),
             modaliteCharges,
             adresse,
             disponibleAPartirDu,
@@ -145,7 +152,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
       <form onSubmit={soumettre} className="space-y-6">
         {/* Type et identité du bien */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
-          <legend className="px-1 text-sm font-semibold text-slate-700">Type de bien</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Type de bien</legend>
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">Type</label>
@@ -185,9 +192,38 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
           </div>
         </fieldset>
 
+        {estColocation && (
+          <fieldset className="rounded-md border border-slate-200 bg-white p-4">
+            <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Chambres</legend>
+            <div className="mt-4 space-y-3">
+              {chambres.map((c) => (
+                <ChambreLigneForm
+                  key={c.cle}
+                  chambre={c}
+                  onChange={(maj) => majChambre(c.cle, maj)}
+                  onRetirer={() => retirerChambre(c.cle)}
+                />
+              ))}
+              {chambres.length === 0 && (
+                <p className="text-xs text-slate-500">
+                  Aucune chambre saisie. Ajoutez-en, ou enregistrez le bien et ajoutez des chambres plus tard
+                  depuis sa fiche.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setChambres((prev) => [...prev, nouvelleChambreVide()])}
+                className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+              >
+                + Ajouter une chambre
+              </button>
+            </div>
+          </fieldset>
+        )}
+
         {/* Surface et loyer (du bien parent) */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
-          <legend className="px-1 text-sm font-semibold text-slate-700">Surface et loyer</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Surface et loyer</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -236,8 +272,9 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                 <input
                   type="text"
                   placeholder="800,00"
-                  value={loyerEuros}
+                  value={loyerDeriveDesChambres ? (loyerChambresEnCentimes / 100).toFixed(2).replace('.', ',') : loyerEuros}
                   onChange={(e) => setLoyerEuros(e.target.value)}
+                  disabled={loyerDeriveDesChambres}
                   required
                   className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
@@ -247,12 +284,19 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                 <input
                   type="text"
                   placeholder="50,00"
-                  value={chargesEuros}
+                  value={loyerDeriveDesChambres ? (chargesChambresEnCentimes / 100).toFixed(2).replace('.', ',') : chargesEuros}
                   onChange={(e) => setChargesEuros(e.target.value)}
+                  disabled={loyerDeriveDesChambres}
                   className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
             </div>
+            {loyerDeriveDesChambres && (
+              <p className="-mt-2 text-xs text-slate-500">
+                Dérivés de la somme des {chambres.length} chambre{chambres.length > 1 ? 's' : ''} saisie
+                {chambres.length > 1 ? 's' : ''} ci-dessus.
+              </p>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-slate-700">
@@ -271,7 +315,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
 
         {/* Adresse du bien */}
         <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
-          <legend className="px-1 text-sm font-semibold text-slate-700">Adresse du bien</legend>
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Adresse du bien</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>
@@ -347,35 +391,6 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
             </div>
           </div>
         </fieldset>
-
-        {estColocation && (
-          <fieldset className="rounded-md border border-slate-200 bg-white p-4">
-            <legend className="px-1 text-sm font-semibold text-slate-700">Chambres</legend>
-            <div className="mt-4 space-y-3">
-              {chambres.map((c) => (
-                <ChambreLigneForm
-                  key={c.cle}
-                  chambre={c}
-                  onChange={(maj) => majChambre(c.cle, maj)}
-                  onRetirer={() => retirerChambre(c.cle)}
-                />
-              ))}
-              {chambres.length === 0 && (
-                <p className="text-xs text-slate-500">
-                  Aucune chambre saisie. Ajoutez-en, ou enregistrez le bien et ajoutez des chambres plus tard
-                  depuis sa fiche.
-                </p>
-              )}
-              <button
-                type="button"
-                onClick={() => setChambres((prev) => [...prev, nouvelleChambreVide()])}
-                className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
-              >
-                + Ajouter une chambre
-              </button>
-            </div>
-          </fieldset>
-        )}
 
         <button
           type="submit"
