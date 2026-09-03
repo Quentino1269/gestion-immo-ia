@@ -87,11 +87,11 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
     try {
       const profilMisAJour = await completerMonProfil(payload, session.token);
       setProfil(profilMisAJour);
-      setMessageSucces(
-        profilMisAJour.statutProfil === 'COMPLET'
-          ? 'Profil complété — vous pouvez maintenant signer un bail.'
-          : 'Informations enregistrées.',
-      );
+      // Si le profil vient de passer COMPLET, le bandeau permanent ci-dessous ("Profil complet —
+      // vous pouvez signer un bail.") l'annonce déjà : pas de second message redondant ici.
+      if (profilMisAJour.statutProfil !== 'COMPLET') {
+        setMessageSucces('Informations enregistrées.');
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setErreurGlobale(err.message);
