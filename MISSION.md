@@ -36,7 +36,7 @@ Règles d'orchestration :
 
 ## 2. Périmètre **prêt pour implémentation** (slices validés)
 
-Cinq slices validés :
+Six slices validés :
 
 | Slice                              | Statut          | Fichier                                                | Rôle dans la chaîne fonctionnelle                  |
 |------------------------------------|-----------------|--------------------------------------------------------|----------------------------------------------------|
@@ -45,11 +45,12 @@ Cinq slices validés :
 | **Enrichissement du Profil**       | ✅ **COMPLETED** (2026-06-??) | `docs/slices/enrichissement-profil.md`            | Bascule `MINIMAL → COMPLET` pour préparer le bail. |
 | **Création d'un Bien**             | ✅ **COMPLETED** (2026-07-01) | `docs/slices/creation-bien.md`                    | Ajout au portefeuille (maison, appart, chambre coloc). |
 | **Projection de Rentabilité**      | ✅ **COMPLETED** (2026-09-02) | `docs/slices/projection-rentabilite.md` | Simule la rentabilité future d'un bien loué (fiscalité, financement, colocation), scénarios comparables. |
+| **Modification d'un Bien Existant**| ✅ **VALIDÉ, non implémenté** (2026-09-03) | `docs/slices/modification-bien.md` | Corrige les champs opérationnels (loyer, charges, meublé, disponibilité, libellé chambre, pièces) d'un bien déjà créé. |
 
 **Limitations consenties pour cette première implémentation** :
 
 - **Mono-propriétaire** : pas d'habilitations multiples (co-propriétaires, administrateurs délégués) — ce slice est *différé*. À l'implémentation, on considère `proprietaireInitialId = unique ayant droit` du bien.
-- **Pas de modification post-création** des biens et des profils — slices différés.
+- **Pas de modification post-création du profil** — slice différé. (La modification post-création des biens est désormais couverte par `docs/slices/modification-bien.md`, en attente d'implémentation.)
 - **Pas de bail** — slice différé.
 - Le code Java déjà committé pour `CreerBien` (`reference`, `prixEnCentimes`) **doit être intégralement remplacé** par l'implémentation du slice validé. Pas d'effort de rétro-compatibilité.
 
@@ -140,3 +141,4 @@ Pour chaque nouveau slice : narration courte → diagramme Mermaid → tableaux 
 - 2026-08-26 — Slice **Projection de Rentabilité** modélisé et validé (`docs/slices/projection-rentabilite.md`) : nouveau bounded context `rentabilite`, aggregate `SimulationRentabilite` (event sourcé, immuable, un scénario = un fait figé). Couvre nu/meublé, micro/réel complet avec amortissement LMNP, financement à crédit avec tableau d'amortissement complet, colocation (bien racine + agrégation des chambres actives), déficit foncier et déficit BIC suivis avec report multi-année, projection année par année sur horizon paramétrable, simulations sauvegardées et comparables. Pas encore implémenté — prochaine étape : protocole BACKEND → QA → FRONTEND (§1.bis).
 - 2026-09-01 — Ajout du skill `design` (Claude Design) comme livrable systématique de la casquette FRONTEND (§1.bis) : après toute création ou modification d'écran, produire ou mettre à jour le canvas de maquettes interactives correspondant, avant la porte qualité. Déclenché suite à un audit UX rétrospectif (skill `ux-design`) et une demande explicite de l'utilisateur de pérenniser ce passage.
 - 2026-09-02 — Slice **Projection de Rentabilité** implémenté end-to-end (protocole BACKEND → QA → FRONTEND, commits `76069cb`, `428d1e2`, `92bf61f`, `b3b4b43`) puis enrichi suite aux retours de test personnel de l'utilisateur : apport personnel saisissable (défaut 30 % du coût d'acquisition) avec montant emprunté recalculé, surfaces/totaux par chambre (coloc/co-living), bandeau de KPIs du portefeuille revu (loyers cumulés charges incluses, loyers net-net cumulés sur la dernière simulation disponible par bien), accent visuel émeraude sur les CTA. Extension notable au modèle événementiel initial : **modification d'une simulation existante**, restée strictement append-only (nouvel événement `SimulationRentabiliteModifiee`, jamais de mutation/suppression), avec historique des versions consultable et réversible (« revenir à cette version » republie l'ancien état via le même événement de modification). Porte qualité complète : code-review, security-review, simplify (4 revues parallèles), 194 tests backend verts, vérifié de bout en bout (API + navigateur). Modification d'un bien existant explicitement différée (demande explicite de l'utilisateur) : à modéliser séparément en Orchestration Métier avant toute implémentation. PR : https://github.com/Quentino1269/gestion-immo-ia/pull/2
+- 2026-09-03 — Slice **Modification d'un Bien Existant** modélisé et validé (`docs/slices/modification-bien.md`) : commande composite `ModifierBien` émettant 0..N événements fins selon les champs réellement modifiés (`LoyerRevise`, `ChargesRevisees`, `MeubleEntreDansLeLogement`/`LogementDevenuNu`, `DisponibiliteRevisee`, `LibelleChambreRenomme`, `NombrePiecesRevise`). Périmètre V1 volontairement restreint : `surfaceM2`, `adresse`, `typeBien`, `bienParentId` restent hors scope (risques de cascade sur les invariants de colocation ou changement de nature structurelle), pas d'historique consultable des révisions. Aucun impact rétroactif sur les simulations de rentabilité (elles snapshotent déjà leurs propres valeurs). Conséquence technique anticipée : `Bien` passera de « write-once » à un aggregate rejouable (premier `reconstruire(...)` sur ce bounded context). Prochaine étape : protocole BACKEND → QA → FRONTEND (§1.bis).
