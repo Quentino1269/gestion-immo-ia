@@ -18,6 +18,7 @@ import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabilite;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteId;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteModifiee;
+import com.immo.gestion.rentabilite.domain.SimulationRentabiliteSupprimee;
 import com.immo.gestion.rentabilite.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.rentabilite.domain.port.in.LancerSimulationRentabiliteCommand;
@@ -30,6 +31,9 @@ import com.immo.gestion.rentabilite.domain.port.in.ObtenirHistoriqueSimulationUs
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirSimulationUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;
+import com.immo.gestion.rentabilite.domain.port.in.SimulationSupprimeeException;
+import com.immo.gestion.rentabilite.domain.port.in.SupprimerSimulationCommand;
+import com.immo.gestion.rentabilite.domain.port.in.SupprimerSimulationUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.TypeBienInvalidePourSimulationException;
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteQueryRepository;
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteRepository;
@@ -49,7 +53,8 @@ import java.util.stream.Collectors;
 @Service
 public class SimulationRentabiliteService
         implements LancerSimulationRentabiliteUseCase, ObtenirSimulationUseCase, ObtenirComparateurUseCase,
-                   ModifierSimulationRentabiliteUseCase, ObtenirHistoriqueSimulationUseCase {
+                   ModifierSimulationRentabiliteUseCase, ObtenirHistoriqueSimulationUseCase,
+                   SupprimerSimulationUseCase {
 
     private final SimulationRentabiliteRepository repository;
     private final SimulationRentabiliteQueryRepository queryRepository;
@@ -124,6 +129,8 @@ public class SimulationRentabiliteService
         if (!existante.utilisateurId().equals(commande.utilisateurId())) {
             throw new DroitInsuffisantSurBienException();
         }
+        // I-SUPPR-4 : une simulation supprimée refuse toute modification.
+        garantirNonSupprimee(existante);
 
         Bien bienRacine = bienQueryRepository.chargerParId(existante.bienId())
                 .orElseThrow(() -> new BienNonTrouveException(existante.bienId()));
@@ -169,7 +176,37 @@ public class SimulationRentabiliteService
         if (!historique.get(0).utilisateurId().equals(demandeurId)) {
             throw new DroitInsuffisantSurBienException();
         }
+        // I-SUPPR-5 (D2) : une simulation supprimée se comporte comme si elle n'existait plus.
+        if (historique.get(historique.size() - 1).supprimee()) {
+            throw new SimulationNonTrouveeException(id);
+        }
         return historique;
+    }
+
+    /** I-SUPPR-4/I-SUPPR-5 : une simulation supprimée refuse toute écriture ultérieure. */
+    private void garantirNonSupprimee(SimulationRentabilite simulation) {
+        if (simulation.supprimee()) {
+            throw new SimulationSupprimeeException(simulation.id());
+        }
+    }
+
+    @Override
+    @Transactional
+    public void supprimer(SupprimerSimulationCommand commande) {
+        EtatCharge<SimulationRentabilite> etatCharge = repository.chargerParId(commande.simulationId())
+                .orElseThrow(() -> new SimulationNonTrouveeException(commande.simulationId()));
+        SimulationRentabilite existante = etatCharge.aggregat();
+
+        if (!existante.utilisateurId().equals(commande.demandeurId())) {
+            throw new DroitInsuffisantSurBienException();
+        }
+        // I-SUPPR-3 (D4) : no-op idempotent si déjà supprimée.
+        if (existante.supprimee()) {
+            return;
+        }
+
+        DomainEvent evenement = new SimulationRentabiliteSupprimee(existante.id(), Instant.now(clock));
+        repository.enregistrer(existante.id(), etatCharge.version(), List.of(evenement));
     }
 
     @Override
@@ -244,7 +281,8 @@ public class SimulationRentabiliteService
                 coutTotal,
                 apport,
                 projection,
-                Instant.now(clock)
+                Instant.now(clock),
+                false
         );
     }
 

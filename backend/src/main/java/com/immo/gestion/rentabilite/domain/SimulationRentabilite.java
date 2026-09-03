@@ -32,7 +32,8 @@ public record SimulationRentabilite(
         long coutTotalAcquisitionEnCentimes,
         long apportPersonnelEnCentimes,
         List<LigneProjection> projectionAnnuelle,
-        Instant simuleLe
+        Instant simuleLe,
+        boolean supprimee
 ) {
 
     private static final int NOM_SCENARIO_MAX = 100;
@@ -126,14 +127,21 @@ public record SimulationRentabilite(
                     e.tmiFoyerPourcent(), e.horizonAnnees(), e.acquisition(), e.financement(), e.amortissement(),
                     e.revenusLocatifsSimules(), e.chargesRecurrentes(), e.hypothesesEvolution(),
                     e.coutTotalAcquisitionEnCentimes(), e.apportPersonnelEnCentimes(), e.projectionAnnuelle(),
-                    e.survenuLe()
+                    e.survenuLe(), false
             );
             case SimulationRentabiliteModifiee e -> new SimulationRentabilite(
                     etat.id(), etat.bienId(), etat.utilisateurId(), e.nomScenario(), e.regimeFiscal(),
                     e.tmiFoyerPourcent(), e.horizonAnnees(), e.acquisition(), e.financement(), e.amortissement(),
                     e.revenusLocatifsSimules(), e.chargesRecurrentes(), e.hypothesesEvolution(),
                     e.coutTotalAcquisitionEnCentimes(), e.apportPersonnelEnCentimes(), e.projectionAnnuelle(),
-                    e.survenuLe()
+                    e.survenuLe(), etat.supprimee()
+            );
+            case SimulationRentabiliteSupprimee e -> new SimulationRentabilite(
+                    etat.id(), etat.bienId(), etat.utilisateurId(), etat.nomScenario(), etat.regimeFiscal(),
+                    etat.tmiFoyerPourcent(), etat.horizonAnnees(), etat.acquisition(), etat.financement(),
+                    etat.amortissement(), etat.revenusLocatifsSimules(), etat.chargesRecurrentes(),
+                    etat.hypothesesEvolution(), etat.coutTotalAcquisitionEnCentimes(), etat.apportPersonnelEnCentimes(),
+                    etat.projectionAnnuelle(), e.survenuLe(), true
             );
             default -> throw new IllegalStateException(
                     "Événement inattendu dans le flux SimulationRentabilite : " + evenement.getClass());

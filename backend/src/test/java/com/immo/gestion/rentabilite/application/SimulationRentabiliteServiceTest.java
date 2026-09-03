@@ -16,6 +16,7 @@ import com.immo.gestion.rentabilite.domain.RegimeFiscal;
 import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabilite;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteId;
+import com.immo.gestion.rentabilite.domain.SimulationRentabiliteSupprimee;
 import com.immo.gestion.rentabilite.domain.port.in.BienNonTrouveException;
 import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteModifiee;
@@ -24,6 +25,8 @@ import com.immo.gestion.rentabilite.domain.port.in.LignesRevenuIncoherentesExcep
 import com.immo.gestion.rentabilite.domain.port.in.ModifierSimulationRentabiliteCommand;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;
+import com.immo.gestion.rentabilite.domain.port.in.SimulationSupprimeeException;
+import com.immo.gestion.rentabilite.domain.port.in.SupprimerSimulationCommand;
 import com.immo.gestion.rentabilite.domain.port.in.TypeBienInvalidePourSimulationException;
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteQueryRepository;
 import com.immo.gestion.rentabilite.domain.port.out.SimulationRentabiliteRepository;
@@ -45,8 +48,11 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -422,6 +428,79 @@ class SimulationRentabiliteServiceTest {
                 .isInstanceOf(DroitInsuffisantSurBienException.class);
     }
 
+    @Test
+    void obtenir_historique_dune_simulation_supprimee_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite v1 = simulationAvec(id, proprietaireId);
+        SimulationRentabilite v2 = marqueeSupprimee(v1);
+        when(repository.chargerHistorique(id)).thenReturn(List.of(v1, v2));
+
+        assertThatThrownBy(() -> service.obtenirHistorique(id, proprietaireId))
+                .isInstanceOf(SimulationNonTrouveeException.class);
+    }
+
+    // --- modifier(commande) sur une simulation supprimée ---
+
+    @Test
+    void modifier_simulation_supprimee_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = marqueeSupprimee(simulationAvec(id, proprietaireId));
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+
+        assertThatThrownBy(() -> service.modifier(commandeModification(
+                id, proprietaireId, RegimeFiscal.MICRO_FONCIER,
+                List.of(new LigneRevenuSimule(existante.bienId(), 100_000L, 0L)))))
+                .isInstanceOf(SimulationSupprimeeException.class);
+        verifyNoInteractions(bienQueryRepository);
+    }
+
+    // --- supprimer(commande) ---
+
+    @Test
+    void supprimer_simulation_existante_publie_evenement() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, proprietaireId);
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 2L)));
+
+        service.supprimer(new SupprimerSimulationCommand(id, proprietaireId));
+
+        ArgumentCaptor<List<DomainEvent>> evenementsCaptor = eventsCaptor();
+        verify(repository).enregistrer(eq(id), eq(2L), evenementsCaptor.capture());
+        assertThat(evenementsCaptor.getValue()).hasSize(1);
+        assertThat(evenementsCaptor.getValue().get(0)).isInstanceOf(SimulationRentabiliteSupprimee.class);
+    }
+
+    @Test
+    void supprimer_simulation_introuvable_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        when(repository.chargerParId(id)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.supprimer(new SupprimerSimulationCommand(id, proprietaireId)))
+                .isInstanceOf(SimulationNonTrouveeException.class);
+    }
+
+    @Test
+    void supprimer_simulation_d_un_autre_utilisateur_leve_exception() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = simulationAvec(id, UtilisateurId.nouveau());
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 1L)));
+
+        assertThatThrownBy(() -> service.supprimer(new SupprimerSimulationCommand(id, proprietaireId)))
+                .isInstanceOf(DroitInsuffisantSurBienException.class);
+        verify(repository, never()).enregistrer(eq(id), anyLong(), any());
+    }
+
+    @Test
+    void supprimer_simulation_deja_supprimee_est_un_noop() {
+        SimulationRentabiliteId id = SimulationRentabiliteId.nouveau();
+        SimulationRentabilite existante = marqueeSupprimee(simulationAvec(id, proprietaireId));
+        when(repository.chargerParId(id)).thenReturn(Optional.of(new EtatCharge<>(existante, 3L)));
+
+        service.supprimer(new SupprimerSimulationCommand(id, proprietaireId));
+
+        verify(repository, never()).enregistrer(eq(id), anyLong(), any());
+    }
+
     // --- Helper ---
 
     private SimulationRentabilite simulationAvec(SimulationRentabiliteId id, UtilisateurId utilisateurId) {
@@ -444,7 +523,17 @@ class SimulationRentabiliteServiceTest {
                         new ParametresChargesRecurrentes(0L, 0L, 0L, BigDecimal.ZERO, 0L, 0L, 0L),
                         new HypothesesEvolution(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO)
                 ),
-                T
+                T,
+                false
+        );
+    }
+
+    private SimulationRentabilite marqueeSupprimee(SimulationRentabilite s) {
+        return new SimulationRentabilite(
+                s.id(), s.bienId(), s.utilisateurId(), s.nomScenario(), s.regimeFiscal(), s.tmiFoyerPourcent(),
+                s.horizonAnnees(), s.acquisition(), s.financement(), s.amortissement(), s.revenusLocatifsSimules(),
+                s.chargesRecurrentes(), s.hypothesesEvolution(), s.coutTotalAcquisitionEnCentimes(),
+                s.apportPersonnelEnCentimes(), s.projectionAnnuelle(), s.simuleLe(), true
         );
     }
 }

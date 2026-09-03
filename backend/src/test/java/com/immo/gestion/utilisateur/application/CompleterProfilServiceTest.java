@@ -96,6 +96,24 @@ class CompleterProfilServiceTest {
     }
 
     @Test
+    void completer_uniquement_date_naissance_ne_la_reliste_pas_comme_manquante() {
+        // Bug signalé par l'utilisateur : après avoir saisi (et sauvegardé) seulement la date de
+        // naissance, elle réapparaissait à tort dans champsManquantsPourBail — champsManquants
+        // regroupait les trois champs du trio de naissance sous le seul nom "dateNaissance".
+        CompleterMonProfilCivilCommand cmd = new CompleterMonProfilCivilCommand(
+                uid, null, LocalDate.of(1990, 6, 1), null, null, null, null, null
+        );
+        when(repository.chargerParId(uid)).thenReturn(Optional.of(new EtatCharge<>(utilisateurMinimal(uid), 1L)));
+
+        ProfilUtilisateur profil = service.completer(cmd);
+
+        assertThat(profil.dateNaissance()).isEqualTo(LocalDate.of(1990, 6, 1));
+        assertThat(profil.champsManquantsPourBail()).doesNotContain("dateNaissance");
+        assertThat(profil.champsManquantsPourBail())
+                .contains("lieuNaissanceVille", "lieuNaissancePaysIso", "adresseDomicile");
+    }
+
+    @Test
     void completer_profil_complet_retourne_statut_COMPLET() {
         ProfilUtilisateur profil = service.completer(commandeComplete());
 
@@ -157,7 +175,8 @@ class CompleterProfilServiceTest {
 
         assertThat(profil.utilisateurId()).isEqualTo(uid);
         assertThat(profil.statutProfil()).isEqualTo(StatutProfil.MINIMAL);
-        assertThat(profil.champsManquantsPourBail()).containsExactly("dateNaissance", "adresseDomicile");
+        assertThat(profil.champsManquantsPourBail())
+                .containsExactly("dateNaissance", "lieuNaissanceVille", "lieuNaissancePaysIso", "adresseDomicile");
     }
 
     @Test

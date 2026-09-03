@@ -93,7 +93,8 @@ public class SimulationRentabiliteQueryRepositoryAdapter implements SimulationRe
                 e.getCoutTotalAcquisitionEnCentimes(),
                 e.getApportPersonnelEnCentimes(),
                 lire(e.getProjectionAnnuelleJson(), new TypeReference<List<LigneProjection>>() {}),
-                e.getSimuleLe()
+                e.getSimuleLe(),
+                false
         );
     }
 

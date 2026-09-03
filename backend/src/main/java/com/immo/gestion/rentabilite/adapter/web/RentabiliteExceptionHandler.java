@@ -5,6 +5,7 @@ import com.immo.gestion.shared.domain.port.in.DroitInsuffisantSurBienException;
 import com.immo.gestion.rentabilite.domain.port.in.LignesRevenuIncoherentesException;
 import com.immo.gestion.rentabilite.domain.port.in.RegimeFiscalIncoherentException;
 import com.immo.gestion.rentabilite.domain.port.in.SimulationNonTrouveeException;
+import com.immo.gestion.rentabilite.domain.port.in.SimulationSupprimeeException;
 import com.immo.gestion.rentabilite.domain.port.in.TypeBienInvalidePourSimulationException;
 import com.immo.gestion.shared.domain.port.out.ConflitDeVersionException;
 import com.immo.gestion.utilisateur.adapter.web.ApiError;
@@ -43,6 +44,11 @@ public class RentabiliteExceptionHandler {
 
     @ExceptionHandler(LignesRevenuIncoherentesException.class)
     public ResponseEntity<ApiError> lignesRevenuIncoherentes(LignesRevenuIncoherentesException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(ApiError.simple(ex.getMessage()));
+    }
+
+    @ExceptionHandler(SimulationSupprimeeException.class)
+    public ResponseEntity<ApiError> simulationSupprimee(SimulationSupprimeeException ex) {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(ApiError.simple(ex.getMessage()));
     }
 

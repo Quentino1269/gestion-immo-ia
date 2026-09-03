@@ -13,12 +13,13 @@ function formaterDate(iso: string): string {
 function CartePortefeuille({
   ligne,
   onSimulerRentabilite,
+  onModifier,
 }: {
   ligne: LignePortefeuilleResponse;
   onSimulerRentabilite: (bienId: string) => void;
+  onModifier: (bienId: string) => void;
 }) {
   const adresseResume = `${ligne.adresse.numero} ${ligne.adresse.voie}, ${ligne.adresse.codePostal} ${ligne.adresse.commune}`;
-  const peutSimuler = ligne.typeBien !== 'CHAMBRE_COLOCATION';
   return (
     <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between">
@@ -40,16 +41,52 @@ function CartePortefeuille({
           <span className="text-slate-400">·</span>
           <span>Dispo le {formaterDate(ligne.disponibleAPartirDu)}</span>
         </div>
-        {peutSimuler && (
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onModifier(ligne.bienId)}
+            className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
+          >
+            Modifier
+          </button>
           <button
             type="button"
             onClick={() => onSimulerRentabilite(ligne.bienId)}
-            className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
           >
             Rentabilité →
           </button>
-        )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+/** Sous-bloc d'une chambre en colocation, rattaché visuellement à son bien parent (D15 révisé,
+ * cf. creation-bien.md) : plus petit, en retrait, relié par une ligne verticale. */
+function CarteChambre({
+  chambre,
+  onModifier,
+}: {
+  chambre: LignePortefeuilleResponse;
+  onModifier: (bienId: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 p-3">
+      <div>
+        <p className="text-sm font-medium text-slate-800">{chambre.libelleCommercial}</p>
+        <p className="mt-0.5 text-xs text-slate-500">
+          {chambre.surfaceM2} m² · {formaterEuros(chambre.loyerHorsChargesEnCentimes)} HC
+          {chambre.chargesEnCentimes > 0 && ` + ${formaterEuros(chambre.chargesEnCentimes)} charges`}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => onModifier(chambre.bienId)}
+        className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
+      >
+        Modifier
+      </button>
     </div>
   );
 }
@@ -57,10 +94,12 @@ function CartePortefeuille({
 export function PortefeuillePage({
   onNouveauBien,
   onSimulerRentabilite,
+  onModifierBien,
   onRetour,
 }: {
   onNouveauBien: () => void;
   onSimulerRentabilite: (bienId: string) => void;
+  onModifierBien: (bienId: string) => void;
   onRetour: () => void;
 }) {
   const { session } = useAuth();
@@ -108,26 +147,41 @@ export function PortefeuillePage({
     );
   }, [session, lignes]);
 
+  // Biens principaux (arborescence, cf. retour utilisateur) : une chambre en colocation n'est pas
+  // comptée séparément dans les KPI — son loyer est déjà inclus dans celui du bien parent (les
+  // biens créés en colocation ont un loyer dérivé de la somme de leurs chambres, cf. NouveauBienPage).
+  const biensPrincipaux = useMemo(() => lignes.filter((l) => l.bienParentId === null), [lignes]);
+  const chambresParParent = useMemo(() => {
+    const carte = new Map<string, LignePortefeuilleResponse[]>();
+    for (const l of lignes) {
+      if (!l.bienParentId) continue;
+      const chambres = carte.get(l.bienParentId) ?? [];
+      chambres.push(l);
+      carte.set(l.bienParentId, chambres);
+    }
+    return carte;
+  }, [lignes]);
+
   const loyersChargesCumulesEnCentimes = useMemo(
-    () => lignes.reduce((somme, l) => somme + l.loyerHorsChargesEnCentimes + l.chargesEnCentimes, 0),
-    [lignes],
+    () => biensPrincipaux.reduce((somme, l) => somme + l.loyerHorsChargesEnCentimes + l.chargesEnCentimes, 0),
+    [biensPrincipaux],
   );
 
   return (
     <section className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Mon portefeuille</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Mon portefeuille</h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
 
       {etat === 'chargement' && (
-        <p className="text-sm text-slate-500">Chargement…</p>
+        <p className="text-sm text-slate-400">Chargement…</p>
       )}
       {etat === 'erreur' && (
         <p className="text-sm text-red-600">Impossible de charger votre portefeuille.</p>
@@ -135,11 +189,11 @@ export function PortefeuillePage({
       {etat === 'pret' && (
         <>
           {lignes.length === 0 ? (
-            <p className="text-sm text-slate-500">Vous n'avez pas encore de bien dans votre portefeuille.</p>
+            <p className="text-sm text-slate-400">Vous n'avez pas encore de bien dans votre portefeuille.</p>
           ) : (
             <>
               <div className="mb-6 grid grid-cols-3 gap-3">
-                <StatTuile libelle="Biens" valeur={String(lignes.length)} />
+                <StatTuile libelle="Biens" valeur={String(biensPrincipaux.length)} />
                 <StatTuile
                   libelle="Loyers cumulés (charges incl.) / mois"
                   valeur={formaterEuros(loyersChargesCumulesEnCentimes)}
@@ -155,9 +209,25 @@ export function PortefeuillePage({
                 cette simulation.
               </p>
               <div className="space-y-4">
-                {lignes.map((l) => (
-                  <CartePortefeuille key={l.bienId} ligne={l} onSimulerRentabilite={onSimulerRentabilite} />
-                ))}
+                {biensPrincipaux.map((l) => {
+                  const chambres = chambresParParent.get(l.bienId) ?? [];
+                  return (
+                    <div key={l.bienId}>
+                      <CartePortefeuille
+                        ligne={l}
+                        onSimulerRentabilite={onSimulerRentabilite}
+                        onModifier={onModifierBien}
+                      />
+                      {chambres.length > 0 && (
+                        <div className="ml-6 mt-2 space-y-2 border-l-2 border-slate-200 pl-4">
+                          {chambres.map((c) => (
+                            <CarteChambre key={c.bienId} chambre={c} onModifier={onModifierBien} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}

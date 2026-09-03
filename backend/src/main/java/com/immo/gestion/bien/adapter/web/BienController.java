@@ -5,6 +5,8 @@ import com.immo.gestion.bien.domain.FicheBien;
 import com.immo.gestion.bien.domain.LignePortefeuille;
 import com.immo.gestion.bien.domain.port.in.CreerBienCommand;
 import com.immo.gestion.bien.domain.port.in.CreerBienUseCase;
+import com.immo.gestion.bien.domain.port.in.ModifierBienCommand;
+import com.immo.gestion.bien.domain.port.in.ModifierBienUseCase;
 import com.immo.gestion.bien.domain.port.in.ObtenirFicheBienUseCase;
 import com.immo.gestion.bien.domain.port.in.ObtenirMonPortefeuilleUseCase;
 import com.immo.gestion.session.adapter.web.ContexteAuthentificationRequete;
@@ -16,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,15 +35,18 @@ public class BienController {
     private final CreerBienUseCase creer;
     private final ObtenirMonPortefeuilleUseCase portefeuille;
     private final ObtenirFicheBienUseCase ficheBien;
+    private final ModifierBienUseCase modifier;
 
     public BienController(
             CreerBienUseCase creer,
             ObtenirMonPortefeuilleUseCase portefeuille,
-            ObtenirFicheBienUseCase ficheBien
+            ObtenirFicheBienUseCase ficheBien,
+            ModifierBienUseCase modifier
     ) {
         this.creer = creer;
         this.portefeuille = portefeuille;
         this.ficheBien = ficheBien;
+        this.modifier = modifier;
     }
 
     @PostMapping
@@ -99,6 +105,29 @@ public class BienController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         FicheBien fiche = ficheBien.obtenir(new BienId(id), uid);
+        return ResponseEntity.ok(FicheBienResponse.depuis(fiche));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<FicheBienResponse> modifierBien(
+            @PathVariable UUID id,
+            @RequestBody ModifierBienRequest body,
+            HttpServletRequest requete
+    ) {
+        UtilisateurId uid = ContexteAuthentificationRequete.utilisateurCourant(requete).orElse(null);
+        if (uid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        FicheBien fiche = modifier.modifier(new ModifierBienCommand(
+                new BienId(id),
+                uid,
+                body.loyerHorsChargesEnCentimes(),
+                body.chargesEnCentimes(),
+                body.meuble(),
+                body.disponibleAPartirDu(),
+                body.libelleChambre(),
+                body.nbPiecesPrincipales()
+        ));
         return ResponseEntity.ok(FicheBienResponse.depuis(fiche));
     }
 }

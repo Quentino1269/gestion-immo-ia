@@ -8,10 +8,10 @@ import { LoginPage } from './pages/LoginPage';
 function App() {
   return (
     <AuthProvider>
-      <main className="min-h-screen w-full bg-slate-50 px-6 py-12">
+      <main className="min-h-screen w-full bg-slate-950 px-6 py-12">
         <header className="mx-auto mb-10 max-w-md text-center">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Gestion Immo</h1>
-          <p className="mt-2 text-sm font-medium text-emerald-700">Plateforme de gestion locative</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-100">Gestion Immo</h1>
+          <p className="mt-2 text-sm font-medium text-emerald-400">Plateforme de gestion locative</p>
         </header>
         <Routeur />
       </main>

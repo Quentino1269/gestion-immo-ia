@@ -12,6 +12,7 @@ import com.immo.gestion.rentabilite.domain.ParametresFinancement;
 import com.immo.gestion.rentabilite.domain.RegimeFiscal;
 import com.immo.gestion.rentabilite.domain.RentabiliteSimulee;
 import com.immo.gestion.rentabilite.domain.SimulationRentabiliteModifiee;
+import com.immo.gestion.rentabilite.domain.SimulationRentabiliteSupprimee;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -63,6 +64,15 @@ public class SimulationRentabiliteProjectionListener {
                 evenement.coutTotalAcquisitionEnCentimes(), evenement.apportPersonnelEnCentimes(),
                 evenement.projectionAnnuelle(), evenement.survenuLe()
         ));
+    }
+
+    @EventListener
+    public void surSimulationRentabiliteSupprimee(SimulationRentabiliteSupprimee evenement) {
+        // Retire la projection de lecture uniquement (D2 : disparition totale côté API) — le fait
+        // reste, lui, définitivement dans l'event store (MISSION §5, append-only). Idempotent
+        // (findById + delete plutôt que deleteById) : une redélivraison de l'événement ne doit pas
+        // lever d'exception si la ligne a déjà été retirée.
+        jpa.findById(evenement.simulationId().valeur()).ifPresent(jpa::delete);
     }
 
     private SimulationRentabiliteEntity construire(

@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut } from './client';
+import { apiDelete, apiGet, apiPost, apiPut } from './client';
 
 export type RegimeFiscal = 'MICRO_FONCIER' | 'REEL_FONCIER' | 'MICRO_BIC' | 'REEL_BIC';
 
@@ -155,6 +155,12 @@ export function modifierSimulation(
     payload,
     token,
   );
+}
+
+/** Supprime une simulation (append-only côté serveur : le fait est préservé dans l'event store,
+ * seule la projection de lecture disparaît — la simulation redevient introuvable via l'API). */
+export function supprimerSimulation(simulationId: string, token: string): Promise<void> {
+  return apiDelete<void>(`/api/simulations-rentabilite/${simulationId}`, token);
 }
 
 /** Historique des versions d'une simulation, de la plus ancienne à la plus récente. */

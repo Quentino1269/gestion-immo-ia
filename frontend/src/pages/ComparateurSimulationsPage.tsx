@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { obtenirComparateur, LIBELLES_REGIME, type LigneComparateurResponse } from '../api/rentabilite';
-import { formaterEuros, formaterPourcent } from '../lib/format';
+import {
+  obtenirComparateur,
+  supprimerSimulation,
+  LIBELLES_REGIME,
+  type LigneComparateurResponse,
+} from '../api/rentabilite';
+import { formaterEuros, formaterPourcent, messageErreur } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
 import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
 
@@ -96,6 +101,28 @@ export function ComparateurSimulationsPage({
   const [lignes, setLignes] = useState<LigneComparateurResponse[]>([]);
   const [etat, setEtat] = useState<EtatChargement>('chargement');
   const [survole, setSurvole] = useState<number | null>(null);
+  const [suppressionEnCours, setSuppressionEnCours] = useState<string | null>(null);
+  const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
+
+  async function supprimer(e: React.MouseEvent, simulationId: string, nomScenario: string) {
+    e.stopPropagation();
+    if (!session) return;
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer cette simulation ? (${nomScenario})`)) {
+      return;
+    }
+    setSuppressionEnCours(simulationId);
+    setErreurSuppression(null);
+    try {
+      await supprimerSimulation(simulationId, session.token);
+      // Ne redirige pas automatiquement même si c'était la dernière simulation : l'utilisateur
+      // vient de demander une suppression, pas une nouvelle simulation (cf. porte qualité).
+      setLignes((prev) => prev.filter((l) => l.simulationId !== simulationId));
+    } catch (err) {
+      setErreurSuppression(messageErreur(err));
+    } finally {
+      setSuppressionEnCours(null);
+    }
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -117,27 +144,41 @@ export function ComparateurSimulationsPage({
   return (
     <section className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
           Simulations de rentabilité
         </h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
 
-      {etat === 'chargement' && <p className="text-sm text-slate-500">Chargement…</p>}
+      {etat === 'chargement' && <p className="text-sm text-slate-400">Chargement…</p>}
       {etat === 'erreur' && (
         <p className="text-sm text-red-600">Impossible de charger les simulations de ce bien.</p>
       )}
 
       {etat === 'pret' && (
         <>
-          {/* lignes est toujours non vide ici : le useEffect redirige directement vers le
-              formulaire de nouvelle simulation si aucun scénario n'existe encore pour ce bien. */}
+        {erreurSuppression && (
+          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+            {erreurSuppression}
+          </div>
+        )}
+
+        {lignes.length === 0 ? (
+          // Le useEffect ci-dessus redirige directement vers "Nouvelle simulation" quand aucun
+          // scénario n'existe encore ; ce cas ne se produit qu'après suppression de la dernière
+          // simulation restante, où l'on affiche plutôt un état vide explicite (pas de redirection
+          // automatique après une action de suppression demandée par l'utilisateur).
+          <p className="text-sm text-slate-400">
+            Plus aucune simulation pour ce bien.
+          </p>
+        ) : (
+          <>
             <div className="mb-4">
               <GraphiqueComparateur lignes={lignes} survole={survole} onSurvoler={setSurvole} />
             </div>
@@ -153,6 +194,7 @@ export function ComparateurSimulationsPage({
                     <th className="px-4 py-2 text-right font-medium text-slate-600">
                       Cash-flow moyen
                     </th>
+                    <th className="px-4 py-2 text-right font-medium text-slate-600"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -184,19 +226,31 @@ export function ComparateurSimulationsPage({
                       >
                         {formaterEuros(l.cashFlowMoyenApresImpotEnCentimes)}
                       </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => supprimer(e, l.simulationId, l.nomScenario)}
+                          disabled={suppressionEnCours === l.simulationId}
+                          className="text-sm font-medium text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {suppressionEnCours === l.simulationId ? '…' : 'Supprimer'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+          </>
+        )}
 
-          <button
-            type="button"
-            onClick={onNouvelleSimulation}
-            className="mt-6 w-full rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
-          >
-            + Nouvelle simulation
-          </button>
+        <button
+          type="button"
+          onClick={onNouvelleSimulation}
+          className="mt-6 w-full rounded bg-emerald-800 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+        >
+          + Nouvelle simulation
+        </button>
         </>
       )}
     </section>

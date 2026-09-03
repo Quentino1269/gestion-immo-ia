@@ -72,8 +72,8 @@ export function InscriptionPage() {
 
   return (
     <section className="mx-auto max-w-md">
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Créer un compte</h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Créer un compte</h2>
+      <p className="mt-2 text-sm text-slate-400">
         Inscrivez-vous pour commencer à gérer votre portefeuille de biens.
       </p>
 
@@ -173,7 +173,7 @@ type ChampProps = {
 function Champ({ label, type, value, onChange, erreur, required, aide }: ChampProps) {
   return (
     <label className="block">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
+      <span className="text-sm font-medium text-slate-300">{label}</span>
       <input
         type={type}
         value={value}
@@ -183,7 +183,7 @@ function Champ({ label, type, value, onChange, erreur, required, aide }: ChampPr
           erreur ? 'border-red-400' : 'border-slate-300'
         }`}
       />
-      {aide && !erreur && <span className="mt-1 block text-xs text-slate-500">{aide}</span>}
+      {aide && !erreur && <span className="mt-1 block text-xs text-slate-400">{aide}</span>}
       {erreur && <span className="mt-1 block text-xs text-red-600">{erreur}</span>}
     </label>
   );
@@ -199,7 +199,7 @@ type CaseProps = {
 function CaseACocher({ label, checked, onChange, erreur }: CaseProps) {
   return (
     <div>
-      <label className="flex items-start gap-2 text-sm text-slate-700">
+      <label className="flex items-start gap-2 text-sm text-slate-300">
         <input
           type="checkbox"
           checked={checked}

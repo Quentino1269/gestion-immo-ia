@@ -87,11 +87,11 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
     try {
       const profilMisAJour = await completerMonProfil(payload, session.token);
       setProfil(profilMisAJour);
-      setMessageSucces(
-        profilMisAJour.statutProfil === 'COMPLET'
-          ? 'Profil complété — vous pouvez maintenant signer un bail.'
-          : 'Informations enregistrées.',
-      );
+      // Si le profil vient de passer COMPLET, le bandeau permanent ci-dessous ("Profil complet —
+      // vous pouvez signer un bail.") l'annonce déjà : pas de second message redondant ici.
+      if (profilMisAJour.statutProfil !== 'COMPLET') {
+        setMessageSucces('Informations enregistrées.');
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setErreurGlobale(err.message);
@@ -104,7 +104,7 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
   }
 
   if (etat === 'chargement') {
-    return <p className="text-sm text-slate-500">Chargement du profil…</p>;
+    return <p className="text-sm text-slate-400">Chargement du profil…</p>;
   }
   if (etat === 'erreur') {
     return <p className="text-sm text-red-600">Impossible de charger le profil.</p>;
@@ -116,11 +116,11 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
   return (
     <section className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Mon profil civil</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Mon profil civil</h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
@@ -153,8 +153,8 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
 
       <form onSubmit={soumettre} className="space-y-6">
         {/* Identité */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Identité</legend>
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Identité</legend>
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">Civilité</label>
@@ -225,8 +225,8 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
         </fieldset>
 
         {/* Coordonnées */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Coordonnées</legend>
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Coordonnées</legend>
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-700">Téléphone (format E.164)</label>
             <input
@@ -241,8 +241,8 @@ export function ProfilPage({ onRetour }: { onRetour: () => void }) {
         </fieldset>
 
         {/* Adresse de domicile */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
-          <legend className="px-1 text-sm font-semibold text-slate-700">Adresse de domicile</legend>
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
+          <legend className="rounded bg-white px-1 text-sm font-semibold text-slate-700">Adresse de domicile</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
               <div>

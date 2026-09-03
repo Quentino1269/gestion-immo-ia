@@ -52,8 +52,9 @@ public class BienExceptionHandler {
     }
 
     /**
-     * Concurrence optimiste (Event Sourcing, MISSION §5). Pas encore atteignable en pratique
-     * (Bien est create-only en V1), mappé par cohérence avant l'introduction d'un mutateur.
+     * Concurrence optimiste (Event Sourcing, MISSION §5) : atteignable en pratique depuis l'ajout
+     * de la modification de bien (ModifierBienUseCase) — deux PUT concurrents sur le même bien
+     * peuvent se disputer la même version chargée.
      */
     @ExceptionHandler(ConflitDeVersionException.class)
     public ResponseEntity<ApiError> conflitDeVersion(ConflitDeVersionException ex) {

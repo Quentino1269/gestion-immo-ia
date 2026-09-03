@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth';
 import { ProfilPage } from './ProfilPage';
 import { PortefeuillePage } from './PortefeuillePage';
 import { NouveauBienPage } from './NouveauBienPage';
+import { ModifierBienPage } from './ModifierBienPage';
 import { ComparateurSimulationsPage } from './ComparateurSimulationsPage';
 import { NouvelleSimulationRentabilitePage } from './NouvelleSimulationRentabilitePage';
 import { SimulationRentabiliteDetailPage } from './SimulationRentabiliteDetailPage';
@@ -14,6 +15,7 @@ type VueAccueil =
   | 'profil'
   | 'portefeuille'
   | 'nouveauBien'
+  | 'modifierBien'
   | 'comparateurRentabilite'
   | 'nouvelleSimulation'
   | 'detailSimulation';
@@ -59,6 +61,10 @@ export function AccueilPage() {
           setBienSelectionne(bienId);
           setVue('comparateurRentabilite');
         }}
+        onModifierBien={(bienId) => {
+          setBienSelectionne(bienId);
+          setVue('modifierBien');
+        }}
         onRetour={() => setVue('accueil')}
       />
     );
@@ -66,6 +72,18 @@ export function AccueilPage() {
 
   if (vue === 'nouveauBien') {
     return <NouveauBienPage onRetour={() => setVue('portefeuille')} />;
+  }
+
+  if (vue === 'modifierBien' && bienSelectionne) {
+    return (
+      <ModifierBienPage
+        key={bienSelectionne}
+        bienId={bienSelectionne}
+        onModifie={() => setVue('portefeuille')}
+        onModifierChambre={(chambreId) => setBienSelectionne(chambreId)}
+        onRetour={() => setVue('portefeuille')}
+      />
+    );
   }
 
   if (vue === 'comparateurRentabilite' && bienSelectionne) {
@@ -128,10 +146,10 @@ export function AccueilPage() {
 
   return (
     <section className="mx-auto max-w-md">
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Bienvenue</h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Bienvenue</h2>
+      <p className="mt-2 text-sm text-slate-400">
         Vous êtes connecté. Votre session expire le{' '}
-        <span className="font-medium text-slate-800">
+        <span className="font-medium text-slate-200">
           {expireA.toLocaleString('fr-FR', {
             dateStyle: 'short',
             timeStyle: 'short',

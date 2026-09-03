@@ -265,7 +265,7 @@ export function SimulationRentabiliteDetailPage({
   }
 
   if (etat === 'chargement') {
-    return <p className="text-sm text-slate-500">Chargement…</p>;
+    return <p className="text-sm text-slate-400">Chargement…</p>;
   }
   if (etat === 'erreur' || !simulation) {
     return <p className="text-sm text-red-600">Impossible de charger cette simulation.</p>;
@@ -291,10 +291,10 @@ export function SimulationRentabiliteDetailPage({
     <section className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
             {simulation.nomScenario}
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="mt-1 text-sm text-slate-400">
             {LIBELLES_REGIME[simulation.regimeFiscal]} · TMI {simulation.tmiFoyerPourcent} % ·
             Horizon {simulation.horizonAnnees} an{simulation.horizonAnnees > 1 ? 's' : ''}
           </p>
@@ -303,21 +303,21 @@ export function SimulationRentabiliteDetailPage({
           <button
             type="button"
             onClick={() => onModifier(simulation)}
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
           >
             Modifier ce scénario
           </button>
           <button
             type="button"
             onClick={() => onDupliquer(simulation)}
-            className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            className="text-sm font-medium text-emerald-400 hover:text-emerald-300 hover:underline"
           >
             Dupliquer ce scénario
           </button>
           <button
             type="button"
             onClick={onRetour}
-            className="text-sm text-slate-500 hover:text-slate-800"
+            className="text-sm text-slate-400 hover:text-slate-100"
           >
             ← Retour
           </button>
@@ -380,7 +380,7 @@ export function SimulationRentabiliteDetailPage({
       <button
         type="button"
         onClick={() => setDetailComplet((v) => !v)}
-        className="mt-3 text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+        className="mt-3 text-sm font-medium text-slate-400 hover:text-slate-100 hover:underline"
       >
         {detailComplet ? '− Masquer le détail' : '+ Afficher le détail (financement, fiscalité, amortissement)'}
       </button>
@@ -492,7 +492,7 @@ export function SimulationRentabiliteDetailPage({
       <button
         type="button"
         onClick={basculerHistorique}
-        className="mt-3 block text-sm font-medium text-slate-600 hover:text-slate-900 hover:underline"
+        className="mt-3 block text-sm font-medium text-slate-400 hover:text-slate-100 hover:underline"
       >
         {historiqueOuvert ? '− Masquer' : '+ Afficher'} l'historique des versions
       </button>
