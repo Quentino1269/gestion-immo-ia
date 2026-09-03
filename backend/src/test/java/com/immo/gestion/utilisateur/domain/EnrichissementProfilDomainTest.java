@@ -128,6 +128,36 @@ class EnrichissementProfilDomainTest {
     }
 
     @Test
+    void completer_uniquement_date_naissance_seule_est_persistee_sans_bascule() {
+        // Bug corrigé : saisir seulement la date de naissance (sans ville/pays dans la même
+        // commande) doit tout de même sauvegarder ce champ, même si le trio de naissance
+        // n'est pas encore complet (donc pas de bascule MINIMAL -> COMPLET).
+        Utilisateur u = utilisateurMinimal();
+        CompleterMonProfilCivilCommand cmd = new CompleterMonProfilCivilCommand(
+                u.id(), null, dateNaissanceValide(), null, null, null, null, null
+        );
+
+        ResultatCompletionProfil resultat = u.completerProfil(cmd, T);
+
+        assertThat(resultat.misAJour().dateNaissance()).isEqualTo(dateNaissanceValide());
+        assertThat(resultat.misAJour().lieuNaissanceVille()).isNull();
+        assertThat(resultat.misAJour().statutProfil()).isEqualTo(StatutProfil.MINIMAL);
+        assertThat(resultat.evenements()).hasSize(1);
+        DonneesNaissanceRenseignees evt = (DonneesNaissanceRenseignees) resultat.evenements().get(0);
+        assertThat(evt.dateNaissance()).isEqualTo(dateNaissanceValide());
+        assertThat(evt.lieuNaissanceVille()).isNull();
+
+        // Une seconde passe complétant ville et pays doit bien basculer en COMPLET, sans redemander
+        // la date de naissance (déjà enregistrée à la première passe).
+        CompleterMonProfilCivilCommand passe2 = new CompleterMonProfilCivilCommand(
+                resultat.misAJour().id(), null, null, "Marseille", "FR", null, adresseValide(), null
+        );
+        ResultatCompletionProfil r2 = resultat.misAJour().completerProfil(passe2, T);
+        assertThat(r2.misAJour().dateNaissance()).isEqualTo(dateNaissanceValide());
+        assertThat(r2.misAJour().statutProfil()).isEqualTo(StatutProfil.COMPLET);
+    }
+
+    @Test
     void resoumission_identique_est_ignoree_sans_event() {
         Utilisateur u = utilisateurMinimal();
         CompleterMonProfilCivilCommand cmd = new CompleterMonProfilCivilCommand(

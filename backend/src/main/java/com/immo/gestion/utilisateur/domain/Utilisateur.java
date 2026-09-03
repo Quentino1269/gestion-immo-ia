@@ -168,9 +168,17 @@ public record Utilisateur(
             evenements.add(new CiviliteRenseignee(id, nouvelleCivilite, maintenant));
         }
 
-        boolean naissanceCompleteAvant = dateNaissance != null && lieuNaissanceVille != null && lieuNaissancePaysIso != null;
+        // Chaque champ de naissance se sauvegarde dès sa première saisie, indépendamment des
+        // autres — la bascule MINIMAL → COMPLET (I-11, D8) exige le trio complet, mais la
+        // persistance elle-même ne doit pas attendre que les trois arrivent dans la même commande
+        // (sinon saisir uniquement la date de naissance, par exemple, ne sauvegarde rien).
         boolean naissanceCompleteApres = nouvelleDateNaissance != null && nouveauLieuVille != null && nouveauLieuPays != null;
-        if (naissanceCompleteApres && !naissanceCompleteAvant) {
+        boolean unChampNaissanceRenseigne =
+                (cmd.dateNaissance() != null && dateNaissance == null)
+                        || (cmd.lieuNaissanceVille() != null && lieuNaissanceVille == null)
+                        || (cmd.lieuNaissancePaysIso() != null && lieuNaissancePaysIso == null)
+                        || (cmd.nationaliteIso() != null && nationaliteIso == null);
+        if (unChampNaissanceRenseigne) {
             evenements.add(new DonneesNaissanceRenseignees(id, nouvelleDateNaissance, nouveauLieuVille, nouveauLieuPays, nouvelleNationalite, maintenant));
         }
 
