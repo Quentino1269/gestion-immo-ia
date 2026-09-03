@@ -9,9 +9,14 @@ import {
   type LignePortefeuilleResponse,
 } from '../api/biens';
 import { ApiError } from '../api/client';
-import { eurosVersCentimes, formaterEuros } from '../lib/format';
+import { eurosVersCentimes, formaterEuros, messageErreur } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
-import { ChambreLigneForm, messageErreur, nouvelleChambreVide, type ChambreUI } from '../components/bien/ChambreLigneForm';
+import {
+  ChambreLigneForm,
+  commandeChambreDepuis,
+  nouvelleChambreVide,
+  type ChambreUI,
+} from '../components/bien/ChambreLigneForm';
 
 /**
  * Écran d'édition d'un bien existant. Ne couvre que les champs modifiables du slice
@@ -69,13 +74,20 @@ export function ModifierBienPage({
   const estChambre = fiche?.typeBien === 'CHAMBRE_COLOCATION';
   const modaliteCharges = meuble ? 'FORFAIT' : 'PROVISION';
 
+  async function chargerChambres() {
+    if (!session) return;
+    try {
+      const portefeuille = await obtenirPortefeuille(session.token);
+      setChambresExistantes(portefeuille.filter((l) => l.bienParentId === bienId));
+    } catch {
+      // silencieux : la liste de chambres reste inchangée
+    }
+  }
+
   useEffect(() => {
     if (!session || !fiche || estChambre) return;
-    obtenirPortefeuille(session.token)
-      .then((lignes) => setChambresExistantes(lignes.filter((l) => l.bienParentId === bienId)))
-      .catch(() => {
-        // silencieux : la liste de chambres reste vide
-      });
+    chargerChambres();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session, fiche, estChambre, bienId]);
 
   async function ajouterChambre() {
@@ -83,17 +95,10 @@ export function ModifierBienPage({
     setAjoutEnCours(true);
     try {
       await creerBien(
-        {
-          typeBien: 'CHAMBRE_COLOCATION',
-          bienParentId: bienId,
-          libelleChambre: nouvelleChambre.libelle,
-          nbPiecesPrincipales: 1,
-          surfaceM2: parseFloat(nouvelleChambre.surfaceM2.replace(',', '.')) || 0,
-          meuble: nouvelleChambre.meuble,
-          loyerHorsChargesEnCentimes: eurosVersCentimes(nouvelleChambre.loyerEuros),
-          chargesEnCentimes: eurosVersCentimes(nouvelleChambre.chargesEuros),
-          modaliteCharges: nouvelleChambre.meuble ? 'FORFAIT' : 'PROVISION',
-          adresse: {
+        commandeChambreDepuis(
+          nouvelleChambre,
+          bienId,
+          {
             numero: fiche.adresse.numero,
             voie: fiche.adresse.voie,
             complement: fiche.adresse.complement ?? undefined,
@@ -101,12 +106,11 @@ export function ModifierBienPage({
             commune: fiche.adresse.commune,
             paysIso: fiche.adresse.paysIso,
           },
-          disponibleAPartirDu: fiche.disponibleAPartirDu,
-        },
+          fiche.disponibleAPartirDu,
+        ),
         session.token,
       );
-      const portefeuille = await obtenirPortefeuille(session.token);
-      setChambresExistantes(portefeuille.filter((l) => l.bienParentId === bienId));
+      await chargerChambres();
       setNouvelleChambre(null);
     } catch (err) {
       setNouvelleChambre({ ...nouvelleChambre, statut: 'erreur', erreur: messageErreur(err) });

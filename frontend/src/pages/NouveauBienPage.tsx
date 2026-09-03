@@ -3,15 +3,11 @@ import { useAuth } from '../auth/useAuth';
 import { creerBien, type TypeBien, type ModaliteCharges } from '../api/biens';
 import {
   ChambreLigneForm,
-  messageErreur,
+  commandeChambreDepuis,
   nouvelleChambreVide,
   type ChambreUI,
 } from '../components/bien/ChambreLigneForm';
-
-function eurosVersCentimes(valeur: string): number {
-  const n = parseFloat(valeur.replace(',', '.'));
-  return isNaN(n) ? 0 : Math.round(n * 100);
-}
+import { eurosVersCentimes, messageErreur } from '../lib/format';
 
 /**
  * Formulaire de création d'un appartement ou d'une maison. Une colocation se déclare et se
@@ -65,6 +61,15 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
     setEnSoumission(true);
     setErreurGlobale(null);
 
+    const adresse = {
+      numero: adrNumero,
+      voie: adrVoie,
+      complement: adrComplement || undefined,
+      codePostal: adrCodePostal,
+      commune: adrCommune,
+      paysIso: adrPaysIso,
+    };
+
     let idParent = parentBienId;
     if (!idParent) {
       try {
@@ -77,14 +82,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
             loyerHorsChargesEnCentimes: eurosVersCentimes(loyerEuros),
             chargesEnCentimes: eurosVersCentimes(chargesEuros),
             modaliteCharges,
-            adresse: {
-              numero: adrNumero,
-              voie: adrVoie,
-              complement: adrComplement || undefined,
-              codePostal: adrCodePostal,
-              commune: adrCommune,
-              paysIso: adrPaysIso,
-            },
+            adresse,
             disponibleAPartirDu,
           },
           session.token,
@@ -105,29 +103,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
         if (chambresMaj[i].statut === 'creee') continue;
         const c = chambresMaj[i];
         try {
-          await creerBien(
-            {
-              typeBien: 'CHAMBRE_COLOCATION',
-              bienParentId: idParent,
-              libelleChambre: c.libelle,
-              nbPiecesPrincipales: 1,
-              surfaceM2: parseFloat(c.surfaceM2.replace(',', '.')) || 0,
-              meuble: c.meuble,
-              loyerHorsChargesEnCentimes: eurosVersCentimes(c.loyerEuros),
-              chargesEnCentimes: eurosVersCentimes(c.chargesEuros),
-              modaliteCharges: c.meuble ? 'FORFAIT' : 'PROVISION',
-              adresse: {
-                numero: adrNumero,
-                voie: adrVoie,
-                complement: adrComplement || undefined,
-                codePostal: adrCodePostal,
-                commune: adrCommune,
-                paysIso: adrPaysIso,
-              },
-              disponibleAPartirDu,
-            },
-            session.token,
-          );
+          await creerBien(commandeChambreDepuis(c, idParent, adresse, disponibleAPartirDu), session.token);
           chambresMaj[i] = { ...c, statut: 'creee', erreur: undefined };
         } catch (err) {
           chambresMaj[i] = { ...c, statut: 'erreur', erreur: messageErreur(err) };

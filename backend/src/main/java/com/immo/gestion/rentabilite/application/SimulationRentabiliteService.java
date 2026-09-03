@@ -130,9 +130,7 @@ public class SimulationRentabiliteService
             throw new DroitInsuffisantSurBienException();
         }
         // I-SUPPR-4 : une simulation supprimée refuse toute modification.
-        if (existante.supprimee()) {
-            throw new SimulationSupprimeeException(existante.id());
-        }
+        garantirNonSupprimee(existante);
 
         Bien bienRacine = bienQueryRepository.chargerParId(existante.bienId())
                 .orElseThrow(() -> new BienNonTrouveException(existante.bienId()));
@@ -183,6 +181,13 @@ public class SimulationRentabiliteService
             throw new SimulationNonTrouveeException(id);
         }
         return historique;
+    }
+
+    /** I-SUPPR-4/I-SUPPR-5 : une simulation supprimée refuse toute écriture ultérieure. */
+    private void garantirNonSupprimee(SimulationRentabilite simulation) {
+        if (simulation.supprimee()) {
+            throw new SimulationSupprimeeException(simulation.id());
+        }
     }
 
     @Override

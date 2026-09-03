@@ -6,7 +6,7 @@ import {
   LIBELLES_REGIME,
   type LigneComparateurResponse,
 } from '../api/rentabilite';
-import { formaterEuros, formaterPourcent } from '../lib/format';
+import { formaterEuros, formaterPourcent, messageErreur } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
 import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
 
@@ -117,8 +117,8 @@ export function ComparateurSimulationsPage({
       // Ne redirige pas automatiquement même si c'était la dernière simulation : l'utilisateur
       // vient de demander une suppression, pas une nouvelle simulation (cf. porte qualité).
       setLignes((prev) => prev.filter((l) => l.simulationId !== simulationId));
-    } catch {
-      setErreurSuppression('Impossible de supprimer cette simulation.');
+    } catch (err) {
+      setErreurSuppression(messageErreur(err));
     } finally {
       setSuppressionEnCours(null);
     }
@@ -161,24 +161,24 @@ export function ComparateurSimulationsPage({
         <p className="text-sm text-red-600">Impossible de charger les simulations de ce bien.</p>
       )}
 
-      {etat === 'pret' && erreurSuppression && (
-        <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-          {erreurSuppression}
-        </div>
-      )}
-
-      {etat === 'pret' && lignes.length === 0 && (
-        // Le useEffect ci-dessus redirige directement vers "Nouvelle simulation" quand aucun
-        // scénario n'existe encore ; ce cas ne se produit qu'après suppression de la dernière
-        // simulation restante, où l'on affiche plutôt un état vide explicite (pas de redirection
-        // automatique après une action de suppression demandée par l'utilisateur).
-        <p className="text-sm text-slate-400">
-          Plus aucune simulation pour ce bien.
-        </p>
-      )}
-
-      {etat === 'pret' && lignes.length > 0 && (
+      {etat === 'pret' && (
         <>
+        {erreurSuppression && (
+          <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+            {erreurSuppression}
+          </div>
+        )}
+
+        {lignes.length === 0 ? (
+          // Le useEffect ci-dessus redirige directement vers "Nouvelle simulation" quand aucun
+          // scénario n'existe encore ; ce cas ne se produit qu'après suppression de la dernière
+          // simulation restante, où l'on affiche plutôt un état vide explicite (pas de redirection
+          // automatique après une action de suppression demandée par l'utilisateur).
+          <p className="text-sm text-slate-400">
+            Plus aucune simulation pour ce bien.
+          </p>
+        ) : (
+          <>
             <div className="mb-4">
               <GraphiqueComparateur lignes={lignes} survole={survole} onSurvoler={setSurvole} />
             </div>
@@ -241,10 +241,9 @@ export function ComparateurSimulationsPage({
                 </tbody>
               </table>
             </div>
-        </>
-      )}
+          </>
+        )}
 
-      {etat === 'pret' && (
         <button
           type="button"
           onClick={onNouvelleSimulation}
@@ -252,6 +251,7 @@ export function ComparateurSimulationsPage({
         >
           + Nouvelle simulation
         </button>
+        </>
       )}
     </section>
   );

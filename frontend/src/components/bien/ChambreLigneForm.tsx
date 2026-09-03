@@ -1,4 +1,5 @@
-import { ApiError } from '../../api/client';
+import type { AdresseBienPayload, CreerBienPayload } from '../../api/biens';
+import { eurosVersCentimes } from '../../lib/format';
 
 export type ChambreUI = {
   cle: string;
@@ -26,8 +27,28 @@ export function nouvelleChambreVide(): ChambreUI {
   };
 }
 
-export function messageErreur(err: unknown): string {
-  return err instanceof ApiError ? err.message : 'Une erreur inattendue est survenue.';
+/** Construit la commande CreerBien d'une chambre à partir de sa saisie et du contexte du bien
+ * parent — partagé entre NouveauBienPage (colocation à la création) et ModifierBienPage (ajout
+ * d'une chambre à un bien déjà existant). */
+export function commandeChambreDepuis(
+  chambre: ChambreUI,
+  bienParentId: string,
+  adresse: AdresseBienPayload,
+  disponibleAPartirDu: string,
+): CreerBienPayload {
+  return {
+    typeBien: 'CHAMBRE_COLOCATION',
+    bienParentId,
+    libelleChambre: chambre.libelle,
+    nbPiecesPrincipales: 1,
+    surfaceM2: parseFloat(chambre.surfaceM2.replace(',', '.')) || 0,
+    meuble: chambre.meuble,
+    loyerHorsChargesEnCentimes: eurosVersCentimes(chambre.loyerEuros),
+    chargesEnCentimes: eurosVersCentimes(chambre.chargesEuros),
+    modaliteCharges: chambre.meuble ? 'FORFAIT' : 'PROVISION',
+    adresse,
+    disponibleAPartirDu,
+  };
 }
 
 /** Une ligne de saisie pour une chambre (libellé, surface, loyer, charges, meublé), avec son
