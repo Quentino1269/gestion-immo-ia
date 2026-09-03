@@ -129,18 +129,18 @@ export function PortefeuillePage({
   return (
     <section className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Mon portefeuille</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Mon portefeuille</h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
 
       {etat === 'chargement' && (
-        <p className="text-sm text-slate-500">Chargement…</p>
+        <p className="text-sm text-slate-400">Chargement…</p>
       )}
       {etat === 'erreur' && (
         <p className="text-sm text-red-600">Impossible de charger votre portefeuille.</p>
@@ -148,7 +148,7 @@ export function PortefeuillePage({
       {etat === 'pret' && (
         <>
           {lignes.length === 0 ? (
-            <p className="text-sm text-slate-500">Vous n'avez pas encore de bien dans votre portefeuille.</p>
+            <p className="text-sm text-slate-400">Vous n'avez pas encore de bien dans votre portefeuille.</p>
           ) : (
             <>
               <div className="mb-6 grid grid-cols-3 gap-3">

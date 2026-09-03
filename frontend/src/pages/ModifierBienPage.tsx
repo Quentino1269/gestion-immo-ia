@@ -1,23 +1,35 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { modifierBien, obtenirFicheBien, type FicheBienResponse } from '../api/biens';
+import {
+  creerBien,
+  modifierBien,
+  obtenirFicheBien,
+  obtenirPortefeuille,
+  type FicheBienResponse,
+  type LignePortefeuilleResponse,
+} from '../api/biens';
 import { ApiError } from '../api/client';
 import { eurosVersCentimes, formaterEuros } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
+import { ChambreLigneForm, messageErreur, nouvelleChambreVide, type ChambreUI } from '../components/bien/ChambreLigneForm';
 
 /**
  * Écran d'édition d'un bien existant. Ne couvre que les champs modifiables du slice
  * (docs/slices/modification-bien.md D2) : loyer, charges, meublé, disponibilité, libellé de
  * chambre, nombre de pièces. Le type, la surface et l'adresse sont hors périmètre (D3) et
- * affichés en lecture seule pour situer le bien.
+ * affichés en lecture seule pour situer le bien. Pour un appartement/maison, une section
+ * « Chambres » permet de consulter les chambres déjà rattachées et d'en ajouter une nouvelle
+ * (cf. docs/slices/creation-bien.md D15, révisé : l'ajout après création se fait ici).
  */
 export function ModifierBienPage({
   bienId,
   onModifie,
+  onModifierChambre,
   onRetour,
 }: {
   bienId: string;
   onModifie: () => void;
+  onModifierChambre?: (chambreId: string) => void;
   onRetour: () => void;
 }) {
   const { session } = useAuth();
@@ -33,6 +45,10 @@ export function ModifierBienPage({
 
   const [enSoumission, setEnSoumission] = useState(false);
   const [erreurGlobale, setErreurGlobale] = useState<string | null>(null);
+
+  const [chambresExistantes, setChambresExistantes] = useState<LignePortefeuilleResponse[]>([]);
+  const [nouvelleChambre, setNouvelleChambre] = useState<ChambreUI | null>(null);
+  const [ajoutEnCours, setAjoutEnCours] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -52,6 +68,52 @@ export function ModifierBienPage({
 
   const estChambre = fiche?.typeBien === 'CHAMBRE_COLOCATION';
   const modaliteCharges = meuble ? 'FORFAIT' : 'PROVISION';
+
+  useEffect(() => {
+    if (!session || !fiche || estChambre) return;
+    obtenirPortefeuille(session.token)
+      .then((lignes) => setChambresExistantes(lignes.filter((l) => l.bienParentId === bienId)))
+      .catch(() => {
+        // silencieux : la liste de chambres reste vide
+      });
+  }, [session, fiche, estChambre, bienId]);
+
+  async function ajouterChambre() {
+    if (!session || !fiche || !nouvelleChambre) return;
+    setAjoutEnCours(true);
+    try {
+      await creerBien(
+        {
+          typeBien: 'CHAMBRE_COLOCATION',
+          bienParentId: bienId,
+          libelleChambre: nouvelleChambre.libelle,
+          nbPiecesPrincipales: 1,
+          surfaceM2: parseFloat(nouvelleChambre.surfaceM2.replace(',', '.')) || 0,
+          meuble: nouvelleChambre.meuble,
+          loyerHorsChargesEnCentimes: eurosVersCentimes(nouvelleChambre.loyerEuros),
+          chargesEnCentimes: eurosVersCentimes(nouvelleChambre.chargesEuros),
+          modaliteCharges: nouvelleChambre.meuble ? 'FORFAIT' : 'PROVISION',
+          adresse: {
+            numero: fiche.adresse.numero,
+            voie: fiche.adresse.voie,
+            complement: fiche.adresse.complement ?? undefined,
+            codePostal: fiche.adresse.codePostal,
+            commune: fiche.adresse.commune,
+            paysIso: fiche.adresse.paysIso,
+          },
+          disponibleAPartirDu: fiche.disponibleAPartirDu,
+        },
+        session.token,
+      );
+      const portefeuille = await obtenirPortefeuille(session.token);
+      setChambresExistantes(portefeuille.filter((l) => l.bienParentId === bienId));
+      setNouvelleChambre(null);
+    } catch (err) {
+      setNouvelleChambre({ ...nouvelleChambre, statut: 'erreur', erreur: messageErreur(err) });
+    } finally {
+      setAjoutEnCours(false);
+    }
+  }
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
@@ -101,17 +163,17 @@ export function ModifierBienPage({
   return (
     <section className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Modifier le bien</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Modifier le bien</h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
 
-      {etat === 'chargement' && <p className="text-sm text-slate-500">Chargement…</p>}
+      {etat === 'chargement' && <p className="text-sm text-slate-400">Chargement…</p>}
       {etat === 'erreur' && (
         <p className="text-sm text-red-600">Impossible de charger ce bien.</p>
       )}
@@ -137,7 +199,7 @@ export function ModifierBienPage({
           )}
 
           <form onSubmit={soumettre} className="space-y-6">
-            <fieldset className="rounded-md border border-slate-200 p-4">
+            <fieldset className="rounded-md border border-slate-200 bg-white p-4">
               <legend className="px-1 text-sm font-semibold text-slate-700">Identité</legend>
               <div className="mt-4 space-y-4">
                 {estChambre ? (
@@ -172,7 +234,7 @@ export function ModifierBienPage({
               </div>
             </fieldset>
 
-            <fieldset className="rounded-md border border-slate-200 p-4">
+            <fieldset className="rounded-md border border-slate-200 bg-white p-4">
               <legend className="px-1 text-sm font-semibold text-slate-700">Loyer et charges</legend>
               <div className="mt-4 space-y-4">
                 <div className="flex items-center gap-2">
@@ -248,6 +310,62 @@ export function ModifierBienPage({
             Ancien loyer : {formaterEuros(fiche.loyerHorsChargesEnCentimes)} · anciennes charges :{' '}
             {formaterEuros(fiche.chargesEnCentimes)}
           </p>
+
+          {!estChambre && (
+            <fieldset className="mt-6 rounded-md border border-slate-200 bg-white p-4">
+              <legend className="px-1 text-sm font-semibold text-slate-700">Chambres</legend>
+              <div className="mt-4 space-y-3">
+                {chambresExistantes.length === 0 && !nouvelleChambre && (
+                  <p className="text-xs text-slate-500">Aucune chambre rattachée à ce bien pour le moment.</p>
+                )}
+                {chambresExistantes.map((c) => (
+                  <div
+                    key={c.bienId}
+                    className="flex items-center justify-between rounded-md border border-slate-200 p-3 text-sm"
+                  >
+                    <span className="text-slate-700">
+                      {c.libelleCommercial} — {c.surfaceM2} m² — {formaterEuros(c.loyerHorsChargesEnCentimes)}
+                    </span>
+                    {onModifierChambre && (
+                      <button
+                        type="button"
+                        onClick={() => onModifierChambre(c.bienId)}
+                        className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
+                      >
+                        Modifier →
+                      </button>
+                    )}
+                  </div>
+                ))}
+
+                {nouvelleChambre ? (
+                  <div className="space-y-2">
+                    <ChambreLigneForm
+                      chambre={nouvelleChambre}
+                      onChange={setNouvelleChambre}
+                      onRetirer={() => setNouvelleChambre(null)}
+                    />
+                    <button
+                      type="button"
+                      onClick={ajouterChambre}
+                      disabled={ajoutEnCours}
+                      className="w-full rounded bg-emerald-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {ajoutEnCours ? 'Ajout…' : 'Créer cette chambre'}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setNouvelleChambre(nouvelleChambreVide())}
+                    className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+                  >
+                    + Ajouter une chambre
+                  </button>
+                )}
+              </div>
+            </fieldset>
+          )}
         </>
       )}
     </section>

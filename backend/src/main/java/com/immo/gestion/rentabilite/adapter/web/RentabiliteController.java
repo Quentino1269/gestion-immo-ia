@@ -16,11 +16,14 @@ import com.immo.gestion.rentabilite.domain.port.in.ModifierSimulationRentabilite
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirComparateurUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirHistoriqueSimulationUseCase;
 import com.immo.gestion.rentabilite.domain.port.in.ObtenirSimulationUseCase;
+import com.immo.gestion.rentabilite.domain.port.in.SupprimerSimulationCommand;
+import com.immo.gestion.rentabilite.domain.port.in.SupprimerSimulationUseCase;
 import com.immo.gestion.session.adapter.web.ContexteAuthentificationRequete;
 import com.immo.gestion.utilisateur.domain.UtilisateurId;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,19 +46,22 @@ public class RentabiliteController {
     private final ObtenirComparateurUseCase obtenirComparateur;
     private final ModifierSimulationRentabiliteUseCase modifier;
     private final ObtenirHistoriqueSimulationUseCase obtenirHistorique;
+    private final SupprimerSimulationUseCase supprimer;
 
     public RentabiliteController(
             LancerSimulationRentabiliteUseCase lancer,
             ObtenirSimulationUseCase obtenirSimulation,
             ObtenirComparateurUseCase obtenirComparateur,
             ModifierSimulationRentabiliteUseCase modifier,
-            ObtenirHistoriqueSimulationUseCase obtenirHistorique
+            ObtenirHistoriqueSimulationUseCase obtenirHistorique,
+            SupprimerSimulationUseCase supprimer
     ) {
         this.lancer = lancer;
         this.obtenirSimulation = obtenirSimulation;
         this.obtenirComparateur = obtenirComparateur;
         this.modifier = modifier;
         this.obtenirHistorique = obtenirHistorique;
+        this.supprimer = supprimer;
     }
 
     @PostMapping("/biens/{bienId}/simulations-rentabilite")
@@ -134,6 +140,19 @@ public class RentabiliteController {
                 .map(SimulationRentabiliteResponse::depuis)
                 .toList();
         return ResponseEntity.ok(versions);
+    }
+
+    @DeleteMapping("/simulations-rentabilite/{id}")
+    public ResponseEntity<Void> supprimerSimulation(
+            @PathVariable UUID id,
+            HttpServletRequest requete
+    ) {
+        UtilisateurId uid = ContexteAuthentificationRequete.utilisateurCourant(requete).orElse(null);
+        if (uid == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        supprimer.supprimer(new SupprimerSimulationCommand(new SimulationRentabiliteId(id), uid));
+        return ResponseEntity.noContent().build();
     }
 
     private record ParametresPartages(

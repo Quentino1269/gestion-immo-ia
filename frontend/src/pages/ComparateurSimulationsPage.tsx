@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
-import { obtenirComparateur, LIBELLES_REGIME, type LigneComparateurResponse } from '../api/rentabilite';
+import {
+  obtenirComparateur,
+  supprimerSimulation,
+  LIBELLES_REGIME,
+  type LigneComparateurResponse,
+} from '../api/rentabilite';
 import { formaterEuros, formaterPourcent } from '../lib/format';
 import type { EtatChargement } from '../lib/types';
 import { COULEUR_POSITIF, COULEUR_NEGATIF, COULEUR_GRILLE, COULEUR_TEXTE_MUET } from '../lib/chartColors';
@@ -96,6 +101,31 @@ export function ComparateurSimulationsPage({
   const [lignes, setLignes] = useState<LigneComparateurResponse[]>([]);
   const [etat, setEtat] = useState<EtatChargement>('chargement');
   const [survole, setSurvole] = useState<number | null>(null);
+  const [suppressionEnCours, setSuppressionEnCours] = useState<string | null>(null);
+  const [erreurSuppression, setErreurSuppression] = useState<string | null>(null);
+
+  async function supprimer(e: React.MouseEvent, simulationId: string, nomScenario: string) {
+    e.stopPropagation();
+    if (!session) return;
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer cette simulation ? (${nomScenario})`)) {
+      return;
+    }
+    setSuppressionEnCours(simulationId);
+    setErreurSuppression(null);
+    try {
+      await supprimerSimulation(simulationId, session.token);
+      const restantes = lignes.filter((l) => l.simulationId !== simulationId);
+      if (restantes.length === 0) {
+        onNouvelleSimulation();
+        return;
+      }
+      setLignes(restantes);
+    } catch {
+      setErreurSuppression('Impossible de supprimer cette simulation.');
+    } finally {
+      setSuppressionEnCours(null);
+    }
+  }
 
   useEffect(() => {
     if (!session) return;
@@ -117,19 +147,19 @@ export function ComparateurSimulationsPage({
   return (
     <section className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
           Simulations de rentabilité
         </h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
 
-      {etat === 'chargement' && <p className="text-sm text-slate-500">Chargement…</p>}
+      {etat === 'chargement' && <p className="text-sm text-slate-400">Chargement…</p>}
       {etat === 'erreur' && (
         <p className="text-sm text-red-600">Impossible de charger les simulations de ce bien.</p>
       )}
@@ -141,6 +171,11 @@ export function ComparateurSimulationsPage({
             <div className="mb-4">
               <GraphiqueComparateur lignes={lignes} survole={survole} onSurvoler={setSurvole} />
             </div>
+            {erreurSuppression && (
+              <div className="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
+                {erreurSuppression}
+              </div>
+            )}
             <div className="overflow-x-auto rounded-md border border-slate-200 bg-white shadow-sm">
               <table className="min-w-full divide-y divide-slate-200 text-sm">
                 <thead className="bg-slate-50">
@@ -153,6 +188,7 @@ export function ComparateurSimulationsPage({
                     <th className="px-4 py-2 text-right font-medium text-slate-600">
                       Cash-flow moyen
                     </th>
+                    <th className="px-4 py-2 text-right font-medium text-slate-600"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -183,6 +219,16 @@ export function ComparateurSimulationsPage({
                         }`}
                       >
                         {formaterEuros(l.cashFlowMoyenApresImpotEnCentimes)}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={(e) => supprimer(e, l.simulationId, l.nomScenario)}
+                          disabled={suppressionEnCours === l.simulationId}
+                          className="text-sm font-medium text-slate-400 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {suppressionEnCours === l.simulationId ? '…' : 'Supprimer'}
+                        </button>
                       </td>
                     </tr>
                   ))}

@@ -59,7 +59,8 @@ class SimulationRentabiliteDomainTest {
                 coutTotal,
                 coutTotal - montantEmprunte,
                 projectionVide(horizon),
-                T
+                T,
+                false
         );
     }
 
@@ -121,7 +122,7 @@ class SimulationRentabiliteDomainTest {
                 "Scenario", RegimeFiscal.MICRO_FONCIER, 30, 1,
                 ACQUISITION, CASH, AMORTISSEMENT, uneLigneRevenu(bienId), CHARGES, HYPOTHESES,
                 999L, // incohérent avec ACQUISITION.coutTotalEnCentimes() = 20_000_000
-                999L, projectionVide(1), T
+                999L, projectionVide(1), T, false
         )).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("coutTotalAcquisitionEnCentimes");
     }
@@ -152,7 +153,7 @@ class SimulationRentabiliteDomainTest {
                 SimulationRentabiliteId.nouveau(), bienId, UtilisateurId.nouveau(),
                 "Scenario", RegimeFiscal.MICRO_FONCIER, 30, 2,
                 ACQUISITION, CASH, AMORTISSEMENT, uneLigneRevenu(bienId), CHARGES, HYPOTHESES,
-                20_000_000L, 20_000_000L, projectionVide(1), T
+                20_000_000L, 20_000_000L, projectionVide(1), T, false
         )).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("projectionAnnuelle");
     }
@@ -166,7 +167,7 @@ class SimulationRentabiliteDomainTest {
                 SimulationRentabiliteId.nouveau(), bienId, UtilisateurId.nouveau(),
                 "Scenario", RegimeFiscal.MICRO_FONCIER, 30, 1,
                 ACQUISITION, CASH, AMORTISSEMENT, List.of(), CHARGES, HYPOTHESES,
-                20_000_000L, 20_000_000L, projectionVide(1), T
+                20_000_000L, 20_000_000L, projectionVide(1), T, false
         )).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("revenusLocatifsSimules");
     }
@@ -192,7 +193,7 @@ class SimulationRentabiliteDomainTest {
                 creation.acquisition(), creation.financement(), creation.amortissement(),
                 creation.revenusLocatifsSimules(), creation.chargesRecurrentes(), creation.hypothesesEvolution(),
                 creation.coutTotalAcquisitionEnCentimes(), creation.apportPersonnelEnCentimes(),
-                creation.projectionAnnuelle(), T.plusSeconds(60)
+                creation.projectionAnnuelle(), T.plusSeconds(60), false
         );
 
         List<com.immo.gestion.shared.domain.DomainEvent> flux = List.of(
@@ -232,7 +233,7 @@ class SimulationRentabiliteDomainTest {
                 creation.acquisition(), creation.financement(), creation.amortissement(),
                 creation.revenusLocatifsSimules(), creation.chargesRecurrentes(), creation.hypothesesEvolution(),
                 creation.coutTotalAcquisitionEnCentimes(), creation.apportPersonnelEnCentimes(),
-                creation.projectionAnnuelle(), T.plusSeconds(60)
+                creation.projectionAnnuelle(), T.plusSeconds(60), false
         );
 
         List<SimulationRentabilite> historique = SimulationRentabilite.reconstruireHistorique(List.of(

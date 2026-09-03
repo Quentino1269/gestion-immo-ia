@@ -402,7 +402,7 @@ export function NouvelleSimulationRentabilitePage({
   }
 
   if (etat === 'chargement') {
-    return <p className="text-sm text-slate-500">Chargement…</p>;
+    return <p className="text-sm text-slate-400">Chargement…</p>;
   }
   if (etat === 'erreur' || !bien) {
     return <p className="text-sm text-red-600">Impossible de charger ce bien.</p>;
@@ -413,18 +413,18 @@ export function NouvelleSimulationRentabilitePage({
   return (
     <section className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">
           {estModification ? 'Modifier la simulation' : 'Simuler la rentabilité'}
         </h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
       </div>
-      <p className="mb-6 text-sm text-slate-500">
+      <p className="mb-6 text-sm text-slate-400">
         {bien.libelleCommercial} — {bien.adresse.commune}
       </p>
 
@@ -437,7 +437,7 @@ export function NouvelleSimulationRentabilitePage({
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[1fr_300px]">
       <form onSubmit={soumettre} className="space-y-6">
         {/* Scénario */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <legend className="px-1 text-sm font-semibold text-slate-700">Scénario</legend>
           <div className="mt-4 space-y-4">
             <div>
@@ -508,7 +508,7 @@ export function NouvelleSimulationRentabilitePage({
         </fieldset>
 
         {/* Achat */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <legend className="px-1 text-sm font-semibold text-slate-700">Achat</legend>
           <div className="mt-1 text-right text-xs text-slate-500">
             Total :{' '}
@@ -630,7 +630,7 @@ export function NouvelleSimulationRentabilitePage({
         </div>
 
         {/* Travaux */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <legend className="px-1 text-sm font-semibold text-slate-700">Travaux</legend>
           <div className="mt-4">
             <label className="block text-sm font-medium text-slate-700">Travaux à l'acquisition (€)</label>
@@ -647,7 +647,7 @@ export function NouvelleSimulationRentabilitePage({
         </fieldset>
 
         {/* Financement */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <legend className="px-1 text-sm font-semibold text-slate-700">Financement</legend>
           <div className="mt-4 space-y-4">
             <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
@@ -724,7 +724,7 @@ export function NouvelleSimulationRentabilitePage({
 
         {/* Amortissement LMNP */}
         {regimeFiscal === 'REEL_BIC' && (
-          <fieldset className="rounded-md border border-slate-200 p-4">
+          <fieldset className="rounded-md border border-slate-200 bg-white p-4">
             <legend className="px-1 text-sm font-semibold text-slate-700">
               Amortissement (réel BIC / LMNP)
             </legend>
@@ -773,7 +773,7 @@ export function NouvelleSimulationRentabilitePage({
 
         {/* Loyers : une ligne par chambre/studio actif (coloc, co-living), avec surface et totaux
             (constat de l'utilisateur — les biens/chambres se créent depuis "Nouveau bien"). */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <div className="flex items-baseline justify-between">
             <legend className="px-1 text-sm font-semibold text-slate-700">Loyers</legend>
             {lignesRevenu.length > 1 && (
@@ -817,7 +817,7 @@ export function NouvelleSimulationRentabilitePage({
 
         {/* Charges : repliée par défaut avec sous-total toujours visible, pour réduire la charge
             perceptive du formulaire (constat #2, principe ux-design #8 "divulgation progressive"). */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <button
             type="button"
             onClick={() => setChargesOuvert((v) => !v)}
@@ -883,7 +883,7 @@ export function NouvelleSimulationRentabilitePage({
         </fieldset>
 
         {/* Hypothèses d'évolution */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4">
           <legend className="px-1 text-sm font-semibold text-slate-700">Hypothèses d'évolution</legend>
           <div className="mt-4 grid grid-cols-3 gap-4">
             <div>

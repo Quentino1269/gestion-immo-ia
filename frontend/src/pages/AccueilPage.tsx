@@ -79,6 +79,7 @@ export function AccueilPage() {
       <ModifierBienPage
         bienId={bienSelectionne}
         onModifie={() => setVue('portefeuille')}
+        onModifierChambre={(chambreId) => setBienSelectionne(chambreId)}
         onRetour={() => setVue('portefeuille')}
       />
     );
@@ -144,10 +145,10 @@ export function AccueilPage() {
 
   return (
     <section className="mx-auto max-w-md">
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Bienvenue</h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Bienvenue</h2>
+      <p className="mt-2 text-sm text-slate-400">
         Vous êtes connecté. Votre session expire le{' '}
-        <span className="font-medium text-slate-800">
+        <span className="font-medium text-slate-200">
           {expireA.toLocaleString('fr-FR', {
             dateStyle: 'short',
             timeStyle: 'short',

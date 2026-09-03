@@ -33,8 +33,8 @@ export function LoginPage() {
 
   return (
     <section className="mx-auto max-w-md">
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Se connecter</h2>
-      <p className="mt-2 text-sm text-slate-600">
+      <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Se connecter</h2>
+      <p className="mt-2 text-sm text-slate-400">
         Accédez à votre portefeuille de biens.
       </p>
 
@@ -49,7 +49,7 @@ export function LoginPage() {
 
       <form className="mt-6 space-y-4" onSubmit={soumettre} noValidate>
         <label className="block">
-          <span className="text-sm font-medium text-slate-700">Email</span>
+          <span className="text-sm font-medium text-slate-300">Email</span>
           <input
             type="email"
             value={email}
@@ -60,7 +60,7 @@ export function LoginPage() {
           />
         </label>
         <label className="block">
-          <span className="text-sm font-medium text-slate-700">Mot de passe</span>
+          <span className="text-sm font-medium text-slate-300">Mot de passe</span>
           <input
             type="password"
             value={motDePasse}

@@ -1,25 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../auth/useAuth';
+import { creerBien, type TypeBien, type ModaliteCharges } from '../api/biens';
 import {
-  creerBien,
-  obtenirPortefeuille,
-  type TypeBien,
-  type ModaliteCharges,
-  type LignePortefeuilleResponse,
-} from '../api/biens';
-import { ApiError } from '../api/client';
+  ChambreLigneForm,
+  messageErreur,
+  nouvelleChambreVide,
+  type ChambreUI,
+} from '../components/bien/ChambreLigneForm';
 
 function eurosVersCentimes(valeur: string): number {
   const n = parseFloat(valeur.replace(',', '.'));
   return isNaN(n) ? 0 : Math.round(n * 100);
 }
 
+/**
+ * Formulaire de création d'un appartement ou d'une maison. Une colocation se déclare et se
+ * peuple ici directement (case à cocher + chambres saisies dans le même formulaire) — il n'y a
+ * plus de type de bien "Chambre en colocation" isolé à la création (cf. docs/slices/creation-bien.md
+ * D15, révisé). Ajouter une chambre à un bien déjà existant se fait depuis sa fiche
+ * (ModifierBienPage).
+ */
 export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
   const { session } = useAuth();
 
   const [typeBien, setTypeBien] = useState<TypeBien>('APPARTEMENT');
-  const [bienParentId, setBienParentId] = useState('');
-  const [libelleChambre, setLibelleChambre] = useState('');
   const [nbPieces, setNbPieces] = useState('1');
   const [surfaceM2, setSurfaceM2] = useState('');
   const [meuble, setMeuble] = useState(false);
@@ -35,27 +39,25 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
   const [adrCommune, setAdrCommune] = useState('');
   const [adrPaysIso, setAdrPaysIso] = useState('FR');
 
-  const [biensPotentielsParent, setBiensPotentielsParent] = useState<LignePortefeuilleResponse[]>([]);
+  const [estColocation, setEstColocation] = useState(false);
+  const [chambres, setChambres] = useState<ChambreUI[]>([]);
+  // Une fois le bien parent créé (premier essai), on garde son id pour ne pas le recréer si
+  // une ou plusieurs chambres ont échoué et que l'utilisateur corrige puis revalide.
+  const [parentBienId, setParentBienId] = useState<string | null>(null);
+
   const [enSoumission, setEnSoumission] = useState(false);
   const [erreurGlobale, setErreurGlobale] = useState<string | null>(null);
 
-  // La modalité découle du statut meublé
   const modaliteCharges: ModaliteCharges = meuble ? 'FORFAIT' : 'PROVISION';
+  const surfaceChambresEnM2 = chambres.reduce((s, c) => s + (parseFloat(c.surfaceM2.replace(',', '.')) || 0), 0);
 
-  // Pour CHAMBRE_COLOCATION, nbPieces est toujours 1
-  const nbPiecesEffectif = typeBien === 'CHAMBRE_COLOCATION' ? 1 : parseInt(nbPieces, 10) || 1;
+  function majChambre(cle: string, chambre: ChambreUI) {
+    setChambres((prev) => prev.map((c) => (c.cle === cle ? chambre : c)));
+  }
 
-  // Charger les biens éligibles comme parent (non-chambres) à l'ouverture
-  useEffect(() => {
-    if (!session) return;
-    obtenirPortefeuille(session.token)
-      .then((lignes) =>
-        setBiensPotentielsParent(lignes.filter((l) => l.typeBien !== 'CHAMBRE_COLOCATION')),
-      )
-      .catch(() => {
-        // silencieux : la liste parent sera vide
-      });
-  }, [session]);
+  function retirerChambre(cle: string) {
+    setChambres((prev) => prev.filter((c) => c.cle !== cle));
+  }
 
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
@@ -63,50 +65,96 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
     setEnSoumission(true);
     setErreurGlobale(null);
 
-    try {
-      await creerBien(
-        {
-          typeBien,
-          bienParentId: typeBien === 'CHAMBRE_COLOCATION' ? bienParentId || undefined : undefined,
-          libelleChambre: typeBien === 'CHAMBRE_COLOCATION' ? libelleChambre || undefined : undefined,
-          nbPiecesPrincipales: nbPiecesEffectif,
-          surfaceM2: parseFloat(surfaceM2.replace(',', '.')) || 0,
-          meuble,
-          loyerHorsChargesEnCentimes: eurosVersCentimes(loyerEuros),
-          chargesEnCentimes: eurosVersCentimes(chargesEuros),
-          modaliteCharges,
-          adresse: {
-            numero: adrNumero,
-            voie: adrVoie,
-            complement: adrComplement || undefined,
-            codePostal: adrCodePostal,
-            commune: adrCommune,
-            paysIso: adrPaysIso,
+    let idParent = parentBienId;
+    if (!idParent) {
+      try {
+        const parent = await creerBien(
+          {
+            typeBien,
+            nbPiecesPrincipales: parseInt(nbPieces, 10) || 1,
+            surfaceM2: parseFloat(surfaceM2.replace(',', '.')) || 0,
+            meuble,
+            loyerHorsChargesEnCentimes: eurosVersCentimes(loyerEuros),
+            chargesEnCentimes: eurosVersCentimes(chargesEuros),
+            modaliteCharges,
+            adresse: {
+              numero: adrNumero,
+              voie: adrVoie,
+              complement: adrComplement || undefined,
+              codePostal: adrCodePostal,
+              commune: adrCommune,
+              paysIso: adrPaysIso,
+            },
+            disponibleAPartirDu,
           },
-          disponibleAPartirDu,
-        },
-        session.token,
-      );
-      onRetour();
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setErreurGlobale(err.message);
-      } else {
-        setErreurGlobale('Une erreur inattendue est survenue.');
+          session.token,
+        );
+        idParent = parent.bienId;
+        setParentBienId(idParent);
+      } catch (err) {
+        setErreurGlobale(messageErreur(err));
+        setEnSoumission(false);
+        return;
       }
-    } finally {
-      setEnSoumission(false);
     }
+
+    if (estColocation && chambres.length > 0) {
+      const chambresMaj = [...chambres];
+      let resteEnErreur = false;
+      for (let i = 0; i < chambresMaj.length; i++) {
+        if (chambresMaj[i].statut === 'creee') continue;
+        const c = chambresMaj[i];
+        try {
+          await creerBien(
+            {
+              typeBien: 'CHAMBRE_COLOCATION',
+              bienParentId: idParent,
+              libelleChambre: c.libelle,
+              nbPiecesPrincipales: 1,
+              surfaceM2: parseFloat(c.surfaceM2.replace(',', '.')) || 0,
+              meuble: c.meuble,
+              loyerHorsChargesEnCentimes: eurosVersCentimes(c.loyerEuros),
+              chargesEnCentimes: eurosVersCentimes(c.chargesEuros),
+              modaliteCharges: c.meuble ? 'FORFAIT' : 'PROVISION',
+              adresse: {
+                numero: adrNumero,
+                voie: adrVoie,
+                complement: adrComplement || undefined,
+                codePostal: adrCodePostal,
+                commune: adrCommune,
+                paysIso: adrPaysIso,
+              },
+              disponibleAPartirDu,
+            },
+            session.token,
+          );
+          chambresMaj[i] = { ...c, statut: 'creee', erreur: undefined };
+        } catch (err) {
+          chambresMaj[i] = { ...c, statut: 'erreur', erreur: messageErreur(err) };
+          resteEnErreur = true;
+        }
+      }
+      setChambres(chambresMaj);
+      if (resteEnErreur) {
+        setErreurGlobale(
+          'Le bien a été enregistré. Corrigez les chambres en erreur ci-dessous puis validez à nouveau.',
+        );
+        setEnSoumission(false);
+        return;
+      }
+    }
+
+    onRetour();
   }
 
   return (
     <section className="mx-auto max-w-lg">
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Nouveau bien</h2>
+        <h2 className="text-2xl font-semibold tracking-tight text-slate-100">Nouveau bien</h2>
         <button
           type="button"
           onClick={onRetour}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="text-sm text-slate-400 hover:text-slate-100"
         >
           ← Retour
         </button>
@@ -120,91 +168,49 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
 
       <form onSubmit={soumettre} className="space-y-6">
         {/* Type et identité du bien */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
           <legend className="px-1 text-sm font-semibold text-slate-700">Type de bien</legend>
           <div className="mt-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-slate-700">Type</label>
               <select
                 value={typeBien}
-                onChange={(e) => {
-                  setTypeBien(e.target.value as TypeBien);
-                  setBienParentId('');
-                  setLibelleChambre('');
-                  if (e.target.value === 'CHAMBRE_COLOCATION') setMeuble(true);
-                  else setMeuble(false);
-                }}
-                className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+                onChange={(e) => setTypeBien(e.target.value as TypeBien)}
+                className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm disabled:bg-slate-100"
               >
                 <option value="APPARTEMENT">Appartement</option>
                 <option value="MAISON">Maison</option>
-                <option value="CHAMBRE_COLOCATION">Chambre en colocation</option>
               </select>
             </div>
 
-            {typeBien === 'CHAMBRE_COLOCATION' && (
-              <>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Bien parent (colocation)
-                  </label>
-                  <select
-                    value={bienParentId}
-                    onChange={(e) => setBienParentId(e.target.value)}
-                    required
-                    className="mt-1 w-full rounded border border-slate-300 bg-white px-3 py-2 text-sm"
-                  >
-                    <option value="">— Sélectionner un bien —</option>
-                    {biensPotentielsParent.map((b) => (
-                      <option key={b.bienId} value={b.bienId}>
-                        {b.libelleCommercial} — {b.adresse.commune} ({b.surfaceM2} m²)
-                      </option>
-                    ))}
-                  </select>
-                  {biensPotentielsParent.length === 0 && (
-                    <p className="mt-1 text-xs text-amber-700">
-                      Aucun bien éligible. Créez d'abord un appartement ou une maison.
-                    </p>
-                  )}
-                </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700">
+                Nombre de pièces principales
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={nbPieces}
+                onChange={(e) => setNbPieces(e.target.value)}
+                required
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Libellé de la chambre
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Chambre A"
-                    value={libelleChambre}
-                    onChange={(e) => setLibelleChambre(e.target.value)}
-                    required
-                    maxLength={50}
-                    className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                  />
-                </div>
-              </>
-            )}
-
-            {typeBien !== 'CHAMBRE_COLOCATION' && (
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  Nombre de pièces principales
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  value={nbPieces}
-                  onChange={(e) => setNbPieces(e.target.value)}
-                  required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-            )}
+            <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+              <input
+                type="checkbox"
+                checked={estColocation}
+                onChange={(e) => setEstColocation(e.target.checked)}
+                className="rounded border-slate-300"
+              />
+              C'est une colocation
+            </label>
           </div>
         </fieldset>
 
-        {/* Surface et loyer */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        {/* Surface et loyer (du bien parent) */}
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
           <legend className="px-1 text-sm font-semibold text-slate-700">Surface et loyer</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -216,8 +222,13 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={surfaceM2}
                   onChange={(e) => setSurfaceM2(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
+                {estColocation && surfaceChambresEnM2 > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    Somme des chambres : {surfaceChambresEnM2.toFixed(2)} m²
+                  </p>
+                )}
               </div>
               <div className="flex items-end pb-1">
                 <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
@@ -225,7 +236,6 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                     type="checkbox"
                     checked={meuble}
                     onChange={(e) => setMeuble(e.target.checked)}
-                    disabled={typeBien === 'CHAMBRE_COLOCATION'}
                     className="rounded border-slate-300"
                   />
                   Meublé
@@ -253,7 +263,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={loyerEuros}
                   onChange={(e) => setLoyerEuros(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
               <div>
@@ -263,7 +273,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   placeholder="50,00"
                   value={chargesEuros}
                   onChange={(e) => setChargesEuros(e.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
             </div>
@@ -277,14 +287,14 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                 value={disponibleAPartirDu}
                 onChange={(e) => setDisponibleAPartirDu(e.target.value)}
                 required
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
               />
             </div>
           </div>
         </fieldset>
 
         {/* Adresse du bien */}
-        <fieldset className="rounded-md border border-slate-200 p-4">
+        <fieldset className="rounded-md border border-slate-200 bg-white p-4" disabled={!!parentBienId}>
           <legend className="px-1 text-sm font-semibold text-slate-700">Adresse du bien</legend>
           <div className="mt-4 space-y-4">
             <div className="grid grid-cols-3 gap-4">
@@ -296,7 +306,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={adrNumero}
                   onChange={(e) => setAdrNumero(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
               <div className="col-span-2">
@@ -307,7 +317,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={adrVoie}
                   onChange={(e) => setAdrVoie(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
             </div>
@@ -320,7 +330,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                 placeholder="Bât. B, apt. 12"
                 value={adrComplement}
                 onChange={(e) => setAdrComplement(e.target.value)}
-                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
               />
             </div>
             <div className="grid grid-cols-3 gap-4">
@@ -332,7 +342,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={adrCodePostal}
                   onChange={(e) => setAdrCodePostal(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
               <div>
@@ -343,7 +353,7 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={adrCommune}
                   onChange={(e) => setAdrCommune(e.target.value)}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100"
                 />
               </div>
               <div>
@@ -355,12 +365,41 @@ export function NouveauBienPage({ onRetour }: { onRetour: () => void }) {
                   value={adrPaysIso}
                   onChange={(e) => setAdrPaysIso(e.target.value.toUpperCase())}
                   required
-                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm uppercase"
+                  className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm uppercase disabled:bg-slate-100"
                 />
               </div>
             </div>
           </div>
         </fieldset>
+
+        {estColocation && (
+          <fieldset className="rounded-md border border-slate-200 bg-white p-4">
+            <legend className="px-1 text-sm font-semibold text-slate-700">Chambres</legend>
+            <div className="mt-4 space-y-3">
+              {chambres.map((c) => (
+                <ChambreLigneForm
+                  key={c.cle}
+                  chambre={c}
+                  onChange={(maj) => majChambre(c.cle, maj)}
+                  onRetirer={() => retirerChambre(c.cle)}
+                />
+              ))}
+              {chambres.length === 0 && (
+                <p className="text-xs text-slate-500">
+                  Aucune chambre saisie. Ajoutez-en, ou enregistrez le bien et ajoutez des chambres plus tard
+                  depuis sa fiche.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => setChambres((prev) => [...prev, nouvelleChambreVide()])}
+                className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+              >
+                + Ajouter une chambre
+              </button>
+            </div>
+          </fieldset>
+        )}
 
         <button
           type="submit"
