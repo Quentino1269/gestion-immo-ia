@@ -51,85 +51,52 @@ public class BienProjectionListener {
     @EventListener
     public void surLoyerRevise(LoyerRevise evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                e.getNbPiecesPrincipales(), e.getSurfaceM2(), e.isMeuble(), evenement.loyerHorsChargesEnCentimes(),
-                e.getChargesEnCentimes(), e.getModaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setLoyerHorsChargesEnCentimes(evenement.loyerHorsChargesEnCentimes());
+        jpa.save(e);
     }
 
     @EventListener
     public void surChargesRevisees(ChargesRevisees evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                e.getNbPiecesPrincipales(), e.getSurfaceM2(), e.isMeuble(), e.getLoyerHorsChargesEnCentimes(),
-                evenement.chargesEnCentimes(), e.getModaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setChargesEnCentimes(evenement.chargesEnCentimes());
+        jpa.save(e);
     }
 
     @EventListener
     public void surMeubleEntreDansLeLogement(MeubleEntreDansLeLogement evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                e.getNbPiecesPrincipales(), e.getSurfaceM2(), true, e.getLoyerHorsChargesEnCentimes(),
-                e.getChargesEnCentimes(), evenement.modaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setMeuble(true);
+        e.setModaliteCharges(evenement.modaliteCharges());
+        jpa.save(e);
     }
 
     @EventListener
     public void surLogementDevenuNu(LogementDevenuNu evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                e.getNbPiecesPrincipales(), e.getSurfaceM2(), false, e.getLoyerHorsChargesEnCentimes(),
-                e.getChargesEnCentimes(), evenement.modaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setMeuble(false);
+        e.setModaliteCharges(evenement.modaliteCharges());
+        jpa.save(e);
     }
 
     @EventListener
     public void surDisponibiliteRevisee(DisponibiliteRevisee evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                e.getNbPiecesPrincipales(), e.getSurfaceM2(), e.isMeuble(), e.getLoyerHorsChargesEnCentimes(),
-                e.getChargesEnCentimes(), e.getModaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                evenement.disponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setDisponibleAPartirDu(evenement.disponibleAPartirDu());
+        jpa.save(e);
     }
 
     @EventListener
     public void surLibelleChambreRenomme(LibelleChambreRenomme evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(),
-                evenement.libelleChambre(), e.getNbPiecesPrincipales(), e.getSurfaceM2(), e.isMeuble(),
-                e.getLoyerHorsChargesEnCentimes(), e.getChargesEnCentimes(), e.getModaliteCharges(),
-                e.getAdresseNumero(), e.getAdresseVoie(), e.getAdresseComplement(), e.getAdresseCodePostal(),
-                e.getAdresseCommune(), e.getAdressePaysIso(), e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setLibelleChambre(evenement.libelleChambre());
+        jpa.save(e);
     }
 
     @EventListener
     public void surNombrePiecesRevise(NombrePiecesRevise evenement) {
         BienEntity e = existante(evenement.bienId().valeur());
-        jpa.save(construire(
-                e.getId(), e.getProprietaireInitialId(), e.getTypeBien(), e.getBienParentId(), e.getLibelleChambre(),
-                evenement.nbPiecesPrincipales(), e.getSurfaceM2(), e.isMeuble(), e.getLoyerHorsChargesEnCentimes(),
-                e.getChargesEnCentimes(), e.getModaliteCharges(), e.getAdresseNumero(), e.getAdresseVoie(),
-                e.getAdresseComplement(), e.getAdresseCodePostal(), e.getAdresseCommune(), e.getAdressePaysIso(),
-                e.getDisponibleAPartirDu(), e.getAjouteLe()
-        ));
+        e.setNbPiecesPrincipales(evenement.nbPiecesPrincipales());
+        jpa.save(e);
     }
 
     private BienEntity existante(UUID bienId) {

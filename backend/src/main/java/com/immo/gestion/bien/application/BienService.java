@@ -120,13 +120,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
         // I-MOD-6 : libellé unique parmi les *autres* chambres du même parent
         if (candidat.typeBien() == TypeBien.CHAMBRE_COLOCATION
                 && !Objects.equals(candidat.libelleChambre(), existante.libelleChambre())) {
-            boolean dupliquee = queryRepository.chargerChambresParParent(existante.bienParentId()).stream()
-                    .filter(c -> !c.id().equals(existante.id()))
-                    .anyMatch(c -> candidat.libelleChambre().equalsIgnoreCase(
-                            c.libelleChambre() != null ? c.libelleChambre().strip() : ""));
-            if (dupliquee) {
-                throw new LibelleChambreNonUniqueException(candidat.libelleChambre());
-            }
+            verifierLibelleChambreUnique(existante.bienParentId(), candidat.libelleChambre(), existante.id());
         }
 
         Instant maintenant = Instant.now(clock);
@@ -187,13 +181,7 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
         List<Bien> chambresExistantes = queryRepository.chargerChambresParParent(commande.bienParentId());
 
         // I-COLOC-5 : libellé unique dans le parent
-        boolean libelleExiste = chambresExistantes.stream()
-                .anyMatch(c -> commande.libelleChambre() != null
-                        && commande.libelleChambre().strip().equalsIgnoreCase(
-                                c.libelleChambre() != null ? c.libelleChambre().strip() : ""));
-        if (libelleExiste) {
-            throw new LibelleChambreNonUniqueException(commande.libelleChambre());
-        }
+        verifierLibelleChambreUnique(commande.bienParentId(), commande.libelleChambre(), null);
 
         // I-COLOC-4 : somme des surfaces ≤ surface parent
         BigDecimal sommeChambresSurface = chambresExistantes.stream()
@@ -202,6 +190,22 @@ public class BienService implements CreerBienUseCase, ObtenirMonPortefeuilleUseC
                 .add(commande.surfaceM2());
         if (sommeChambresSurface.compareTo(parent.surfaceM2()) > 0) {
             throw new SurfaceChambresDepasseeException();
+        }
+    }
+
+    // --- I-COLOC-5 (création), I-MOD-6 (modification) ---
+
+    private void verifierLibelleChambreUnique(BienId parentId, String libelle, BienId idAExclure) {
+        if (libelle == null) {
+            return;
+        }
+        String libelleNormalise = libelle.strip();
+        boolean dupliquee = queryRepository.chargerChambresParParent(parentId).stream()
+                .filter(c -> idAExclure == null || !c.id().equals(idAExclure))
+                .anyMatch(c -> libelleNormalise.equalsIgnoreCase(
+                        c.libelleChambre() != null ? c.libelleChambre().strip() : ""));
+        if (dupliquee) {
+            throw new LibelleChambreNonUniqueException(libelle);
         }
     }
 }

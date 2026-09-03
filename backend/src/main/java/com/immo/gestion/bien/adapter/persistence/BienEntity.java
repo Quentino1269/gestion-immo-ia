@@ -143,4 +143,14 @@ public class BienEntity {
     public String getAdressePaysIso() { return adressePaysIso; }
     public LocalDate getDisponibleAPartirDu() { return disponibleAPartirDu; }
     public Instant getAjouteLe() { return ajouteLe; }
+
+    public void setLoyerHorsChargesEnCentimes(long loyerHorsChargesEnCentimes) {
+        this.loyerHorsChargesEnCentimes = loyerHorsChargesEnCentimes;
+    }
+    public void setChargesEnCentimes(long chargesEnCentimes) { this.chargesEnCentimes = chargesEnCentimes; }
+    public void setMeuble(boolean meuble) { this.meuble = meuble; }
+    public void setModaliteCharges(ModaliteCharges modaliteCharges) { this.modaliteCharges = modaliteCharges; }
+    public void setDisponibleAPartirDu(LocalDate disponibleAPartirDu) { this.disponibleAPartirDu = disponibleAPartirDu; }
+    public void setLibelleChambre(String libelleChambre) { this.libelleChambre = libelleChambre; }
+    public void setNbPiecesPrincipales(int nbPiecesPrincipales) { this.nbPiecesPrincipales = nbPiecesPrincipales; }
 }
