@@ -30,9 +30,18 @@ public record ProfilUtilisateur(
 ) {
 
     public static ProfilUtilisateur depuis(Utilisateur u) {
+        // Chaque champ manquant est listé individuellement — ne pas regrouper sous un seul nom
+        // (ex. "dateNaissance"), sinon un champ déjà renseigné apparaît à tort comme manquant dès
+        // qu'un autre champ du trio de naissance ne l'est pas encore.
         List<String> manquants = new ArrayList<>();
-        if (u.dateNaissance() == null || u.lieuNaissanceVille() == null || u.lieuNaissancePaysIso() == null) {
+        if (u.dateNaissance() == null) {
             manquants.add("dateNaissance");
+        }
+        if (u.lieuNaissanceVille() == null) {
+            manquants.add("lieuNaissanceVille");
+        }
+        if (u.lieuNaissancePaysIso() == null) {
+            manquants.add("lieuNaissancePaysIso");
         }
         if (u.adresseDomicile() == null) {
             manquants.add("adresseDomicile");
