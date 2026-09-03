@@ -56,9 +56,23 @@ export function ModifierBienPage({
   async function soumettre(e: React.FormEvent) {
     e.preventDefault();
     if (!session || !fiche) return;
-    setEnSoumission(true);
     setErreurGlobale(null);
 
+    if (isNaN(parseFloat(loyerEuros.replace(',', '.')))) {
+      setErreurGlobale('Le loyer hors charges doit être un montant valide.');
+      return;
+    }
+    if (chargesEuros.trim() !== '' && isNaN(parseFloat(chargesEuros.replace(',', '.')))) {
+      setErreurGlobale('Les charges doivent être un montant valide.');
+      return;
+    }
+    const nbPiecesSaisi = parseInt(nbPieces, 10);
+    if (!estChambre && (isNaN(nbPiecesSaisi) || nbPiecesSaisi < 1)) {
+      setErreurGlobale('Le nombre de pièces doit être un entier supérieur ou égal à 1.');
+      return;
+    }
+
+    setEnSoumission(true);
     try {
       await modifierBien(
         bienId,
@@ -68,7 +82,7 @@ export function ModifierBienPage({
           meuble,
           disponibleAPartirDu,
           libelleChambre: estChambre ? libelleChambre : undefined,
-          nbPiecesPrincipales: estChambre ? 1 : parseInt(nbPieces, 10) || 1,
+          nbPiecesPrincipales: estChambre ? 1 : nbPiecesSaisi,
         },
         session.token,
       );
@@ -167,7 +181,6 @@ export function ModifierBienPage({
                       type="checkbox"
                       checked={meuble}
                       onChange={(e) => setMeuble(e.target.checked)}
-                      disabled={estChambre}
                       className="rounded border-slate-300"
                     />
                     Meublé
