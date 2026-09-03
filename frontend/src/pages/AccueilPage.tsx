@@ -3,6 +3,7 @@ import { useAuth } from '../auth/useAuth';
 import { ProfilPage } from './ProfilPage';
 import { PortefeuillePage } from './PortefeuillePage';
 import { NouveauBienPage } from './NouveauBienPage';
+import { ModifierBienPage } from './ModifierBienPage';
 import { ComparateurSimulationsPage } from './ComparateurSimulationsPage';
 import { NouvelleSimulationRentabilitePage } from './NouvelleSimulationRentabilitePage';
 import { SimulationRentabiliteDetailPage } from './SimulationRentabiliteDetailPage';
@@ -14,6 +15,7 @@ type VueAccueil =
   | 'profil'
   | 'portefeuille'
   | 'nouveauBien'
+  | 'modifierBien'
   | 'comparateurRentabilite'
   | 'nouvelleSimulation'
   | 'detailSimulation';
@@ -59,6 +61,10 @@ export function AccueilPage() {
           setBienSelectionne(bienId);
           setVue('comparateurRentabilite');
         }}
+        onModifierBien={(bienId) => {
+          setBienSelectionne(bienId);
+          setVue('modifierBien');
+        }}
         onRetour={() => setVue('accueil')}
       />
     );
@@ -66,6 +72,16 @@ export function AccueilPage() {
 
   if (vue === 'nouveauBien') {
     return <NouveauBienPage onRetour={() => setVue('portefeuille')} />;
+  }
+
+  if (vue === 'modifierBien' && bienSelectionne) {
+    return (
+      <ModifierBienPage
+        bienId={bienSelectionne}
+        onModifie={() => setVue('portefeuille')}
+        onRetour={() => setVue('portefeuille')}
+      />
+    );
   }
 
   if (vue === 'comparateurRentabilite' && bienSelectionne) {

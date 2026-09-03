@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client';
+import { apiGet, apiPost, apiPut } from './client';
 
 export type TypeBien = 'MAISON' | 'APPARTEMENT' | 'CHAMBRE_COLOCATION';
 export type ModaliteCharges = 'FORFAIT' | 'PROVISION';
@@ -65,8 +65,25 @@ export type LignePortefeuilleResponse = {
   disponibleAPartirDu: string;
 };
 
+export type ModifierBienPayload = {
+  loyerHorsChargesEnCentimes: number;
+  chargesEnCentimes: number;
+  meuble: boolean;
+  disponibleAPartirDu: string;
+  libelleChambre?: string | null;
+  nbPiecesPrincipales: number;
+};
+
 export function creerBien(payload: CreerBienPayload, token: string): Promise<FicheBienResponse> {
   return apiPost<CreerBienPayload, FicheBienResponse>('/api/biens', payload, token);
+}
+
+export function modifierBien(
+  bienId: string,
+  payload: ModifierBienPayload,
+  token: string,
+): Promise<FicheBienResponse> {
+  return apiPut<ModifierBienPayload, FicheBienResponse>(`/api/biens/${bienId}`, payload, token);
 }
 
 export function obtenirPortefeuille(token: string): Promise<LignePortefeuilleResponse[]> {

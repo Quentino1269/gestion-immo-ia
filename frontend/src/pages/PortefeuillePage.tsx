@@ -13,9 +13,11 @@ function formaterDate(iso: string): string {
 function CartePortefeuille({
   ligne,
   onSimulerRentabilite,
+  onModifier,
 }: {
   ligne: LignePortefeuilleResponse;
   onSimulerRentabilite: (bienId: string) => void;
+  onModifier: (bienId: string) => void;
 }) {
   const adresseResume = `${ligne.adresse.numero} ${ligne.adresse.voie}, ${ligne.adresse.codePostal} ${ligne.adresse.commune}`;
   const peutSimuler = ligne.typeBien !== 'CHAMBRE_COLOCATION';
@@ -40,15 +42,24 @@ function CartePortefeuille({
           <span className="text-slate-400">·</span>
           <span>Dispo le {formaterDate(ligne.disponibleAPartirDu)}</span>
         </div>
-        {peutSimuler && (
+        <div className="flex shrink-0 items-center gap-3">
           <button
             type="button"
-            onClick={() => onSimulerRentabilite(ligne.bienId)}
-            className="shrink-0 text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            onClick={() => onModifier(ligne.bienId)}
+            className="text-sm font-medium text-slate-500 hover:text-slate-800 hover:underline"
           >
-            Rentabilité →
+            Modifier
           </button>
-        )}
+          {peutSimuler && (
+            <button
+              type="button"
+              onClick={() => onSimulerRentabilite(ligne.bienId)}
+              className="text-sm font-medium text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              Rentabilité →
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -57,10 +68,12 @@ function CartePortefeuille({
 export function PortefeuillePage({
   onNouveauBien,
   onSimulerRentabilite,
+  onModifierBien,
   onRetour,
 }: {
   onNouveauBien: () => void;
   onSimulerRentabilite: (bienId: string) => void;
+  onModifierBien: (bienId: string) => void;
   onRetour: () => void;
 }) {
   const { session } = useAuth();
@@ -156,7 +169,12 @@ export function PortefeuillePage({
               </p>
               <div className="space-y-4">
                 {lignes.map((l) => (
-                  <CartePortefeuille key={l.bienId} ligne={l} onSimulerRentabilite={onSimulerRentabilite} />
+                  <CartePortefeuille
+                    key={l.bienId}
+                    ligne={l}
+                    onSimulerRentabilite={onSimulerRentabilite}
+                    onModifier={onModifierBien}
+                  />
                 ))}
               </div>
             </>
