@@ -128,12 +128,10 @@ export function ComparateurSimulationsPage({
     if (!session) return;
     obtenirComparateur(bienId, session.token)
       .then((data) => {
-        if (data.length === 0) {
-          // Aucune simulation existante : autant lancer directement le formulaire
-          // plutôt que d'afficher un écran vide avec un seul bouton à cliquer.
-          onNouvelleSimulation();
-          return;
-        }
+        // Ne redirige jamais automatiquement vers le formulaire, même si aucune simulation
+        // n'existe encore : un aller-retour auto -> nouvelle simulation -> comparateur (vide) ->
+        // nouvelle simulation... rendait le bouton "Retour" inopérant tant qu'aucune simulation
+        // n'était créée pour ce bien. L'état vide ci-dessous (avec son CTA) gère ce cas.
         setLignes(data);
         setEtat('pret');
       })
@@ -170,10 +168,9 @@ export function ComparateurSimulationsPage({
         )}
 
         {lignes.length === 0 ? (
-          // Le useEffect ci-dessus redirige directement vers "Nouvelle simulation" quand aucun
-          // scénario n'existe encore ; ce cas ne se produit qu'après suppression de la dernière
-          // simulation restante, où l'on affiche plutôt un état vide explicite (pas de redirection
-          // automatique après une action de suppression demandée par l'utilisateur).
+          // Se produit soit à la première visite sur ce bien (aucune simulation encore créée),
+          // soit après suppression de la dernière simulation restante : dans les deux cas, un état
+          // vide explicite avec CTA plutôt qu'une redirection automatique (cf. useEffect ci-dessus).
           <p className="text-sm text-slate-400">
             Plus aucune simulation pour ce bien.
           </p>
